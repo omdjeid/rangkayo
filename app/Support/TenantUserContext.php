@@ -14,6 +14,8 @@ class TenantUserContext
         public readonly string $role,
         public readonly ?Branch $branch = null,
         public readonly bool $isActive = true,
+        /** @var array<int, int> */
+        public readonly array $branchIds = [],
     ) {}
 
     /**
@@ -34,13 +36,26 @@ class TenantUserContext
         return in_array($this->role, ['cashier', 'branch_manager', 'warehouse_staff'], true);
     }
 
+    public function canAccessBranch(?int $branchId): bool
+    {
+        if ($branchId === null) {
+            return ! $this->isBranchScoped();
+        }
+
+        if (! $this->isBranchScoped()) {
+            return true;
+        }
+
+        return in_array($branchId, $this->branchIds, true);
+    }
+
     public function branchId(): ?int
     {
         return $this->branch?->id;
     }
 
     /**
-     * @return array{id:int, name:string, slug:string, role:string, is_active:bool, branch:array{id:int, name:string, code:string|null}|null, subscription:array{plan_code:string, plan_name:string, status:string}|null}
+     * @return array{id:int, name:string, slug:string, role:string, is_active:bool, branch_ids:array<int, int>, branch:array{id:int, name:string, code:string|null}|null, subscription:array{plan_code:string, plan_name:string, status:string}|null}
      */
     public function toSharedArray(): array
     {
@@ -50,6 +65,7 @@ class TenantUserContext
             'slug' => $this->tenant->slug,
             'role' => $this->role,
             'is_active' => $this->isActive,
+            'branch_ids' => $this->branchIds,
             'branch' => $this->branch instanceof Branch ? [
                 'id' => $this->branch->id,
                 'name' => $this->branch->name,

@@ -42,13 +42,32 @@ class CurrentTenant
 
         $pivot = $tenant->pivot;
         $role = (string) ($pivot?->role ?? 'owner');
+        $primaryBranchId = $pivot?->branch_id !== null ? (int) $pivot->branch_id : null;
+        $branchIds = BranchAccess::ids($tenant, $user, $role, $primaryBranchId);
+        $activeBranchId = Session::get('active_branch_id');
         $branch = null;
 
-        if ($pivot?->branch_id !== null) {
+        if ($activeBranchId !== null && in_array((int) $activeBranchId, $branchIds, true)) {
             $branch = $tenant->branches()
                 ->where('is_active', true)
-                ->whereKey($pivot->branch_id)
+                ->whereKey($activeBranchId)
                 ->first();
+        }
+
+        if ($this->roleRequiresBranch($role)) {
+            if (! $branch instanceof Branch && $primaryBranchId !== null && in_array($primaryBranchId, $branchIds, true)) {
+                $branch = $tenant->branches()
+                    ->where('is_active', true)
+                    ->whereKey($primaryBranchId)
+                    ->first();
+            }
+
+            if (! $branch instanceof Branch && $branchIds !== []) {
+                $branch = $tenant->branches()
+                    ->where('is_active', true)
+                    ->whereKey($branchIds[0])
+                    ->first();
+            }
         }
 
         return new TenantUserContext(
@@ -57,6 +76,7 @@ class CurrentTenant
             role: $role,
             branch: $branch,
             isActive: (bool) ($pivot?->is_active ?? true),
+            branchIds: $branchIds,
         );
     }
 
@@ -104,6 +124,7 @@ class CurrentTenant
         }
 
         Session::put('active_tenant_id', $tenant->id);
+        Session::forget('active_branch_id');
     }
 
     public function tenant(?User $user = null): Tenant
@@ -116,10 +137,29 @@ class CurrentTenant
         return $this->context($user)->role;
     }
 
-    public function branch(?Tenant $tenant = null, ?User $user = null): Branch
+    private function roleRequiresBranch(string $role): bool
+    {
+        return in_array($role, ['cashier', 'branch_manager', 'warehouse_staff'], true);
+    }
+
+    public function branch(?Tenant $tenant = null, ?User $user = null, ?int $branchId = null): Branch
     {
         $context = $this->context($user);
         $tenant ??= $context->tenant;
+
+        if ($branchId !== null) {
+            if (! $context->canAccessBranch($branchId)) {
+                throw new RuntimeException('User tidak memiliki akses ke cabang ini.');
+            }
+
+            $branch = $tenant->branches()->where('is_active', true)->whereKey($branchId)->first();
+
+            if (! $branch instanceof Branch) {
+                throw new RuntimeException('Cabang tidak aktif atau tidak tersedia.');
+            }
+
+            return $branch;
+        }
 
         if ($context->tenant->is($tenant) && $context->branch instanceof Branch) {
             return $context->branch;
@@ -134,17 +174,23 @@ class CurrentTenant
         return $branch;
     }
 
-    public function warehouse(?Tenant $tenant = null, ?Branch $branch = null): Warehouse
+    public function warehouse(?Tenant $tenant = null, ?Branch $branch = null, ?int $warehouseId = null): Warehouse
     {
         $tenant ??= $this->tenant();
         $branch ??= $this->branch($tenant);
 
-        $warehouse = $tenant->warehouses()
+        $query = $tenant->warehouses()
             ->where('branch_id', $branch->id)
-            ->where('is_active', true)
-            ->orderByDesc('is_default')
-            ->orderBy('id')
-            ->first();
+            ->where('is_active', true);
+
+        if ($warehouseId !== null) {
+            $warehouse = (clone $query)->whereKey($warehouseId)->first();
+        } else {
+            $warehouse = $query
+                ->orderByDesc('is_default')
+                ->orderBy('id')
+                ->first();
+        }
 
         if (! $warehouse instanceof Warehouse) {
             throw new RuntimeException('Cabang belum memiliki gudang aktif.');

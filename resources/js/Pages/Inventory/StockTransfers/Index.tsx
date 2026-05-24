@@ -2,7 +2,7 @@ import FormField from "@/Components/FormField";
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
 import type { PageProps } from "@/types";
 import { formatCurrency, formatNumber } from "@/utils/format";
-import { Head, useForm } from "@inertiajs/react";
+import { Head, router, useForm } from "@inertiajs/react";
 
 interface Warehouse {
 	id: number;
@@ -18,15 +18,35 @@ interface Product {
 }
 interface Transfer {
 	id: number;
-	movement_number: string;
+	transfer_number: string;
+	status: "draft" | "approved" | "received";
 	product: string;
-	warehouse: string;
-	quantity_out: number;
+	from_warehouse: string;
+	to_warehouse: string;
+	quantity: number;
 	total_cost: number;
+	requested_at: string | null;
+	approved_at: string | null;
+	received_at: string | null;
+	requested_by: string | null;
+	approved_by: string | null;
+	received_by: string | null;
 	notes: string | null;
 }
 const inputClass =
 	"w-full rounded-2xl border-slate-200 bg-white/80 shadow-sm focus:border-cyan-400 focus:ring-cyan-400";
+
+const statusLabel: Record<Transfer["status"], string> = {
+	draft: "Draft",
+	approved: "Dikirim",
+	received: "Diterima",
+};
+
+const statusClass: Record<Transfer["status"], string> = {
+	draft: "bg-amber-100 text-amber-700",
+	approved: "bg-cyan-100 text-cyan-700",
+	received: "bg-emerald-100 text-emerald-700",
+};
 
 export default function StockTransfersIndex({
 	warehouses,
@@ -51,6 +71,23 @@ export default function StockTransfersIndex({
 		e.preventDefault();
 		form.post(route("stock-transfers.store"), { preserveScroll: true });
 	}
+
+	function approveTransfer(transfer: Transfer) {
+		router.patch(
+			route("stock-transfers.approve", transfer.id),
+			{},
+			{ preserveScroll: true },
+		);
+	}
+
+	function receiveTransfer(transfer: Transfer) {
+		router.patch(
+			route("stock-transfers.receive", transfer.id),
+			{},
+			{ preserveScroll: true },
+		);
+	}
+
 	return (
 		<AuthenticatedLayout
 			header={
@@ -73,8 +110,12 @@ export default function StockTransfersIndex({
 							{currentBranch.name}
 						</p>
 						<h3 className="mt-1 text-lg font-semibold text-slate-950">
-							Pindahkan Barang
+							Buat Draft Transfer
 						</h3>
+						<p className="mt-2 text-sm text-slate-500">
+							Draft tidak mengubah stok. Stok asal berkurang saat
+							disetujui/dikirim, dan stok tujuan bertambah saat diterima.
+						</p>
 						<div className="mt-5 space-y-4">
 							<FormField label="Gudang Asal" required>
 								<select
@@ -148,7 +189,7 @@ export default function StockTransfersIndex({
 								/>
 							</FormField>
 							<button className="w-full rounded-2xl bg-slate-950 px-5 py-3 font-semibold text-white shadow-lg shadow-slate-300">
-								Simpan Transfer
+								Simpan Draft Transfer
 							</button>
 						</div>
 					</form>
@@ -162,22 +203,61 @@ export default function StockTransfersIndex({
 									key={item.id}
 									className="rounded-3xl border border-slate-200 bg-white/75 p-5"
 								>
-									<div className="flex justify-between gap-4">
+									<div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
 										<div>
-											<p className="font-semibold text-slate-950">
-												{item.product}
+											<div className="flex flex-wrap items-center gap-2">
+												<p className="font-semibold text-slate-950">
+													{item.product}
+												</p>
+												<span
+													className={`rounded-full px-3 py-1 text-xs font-bold ${statusClass[item.status]}`}
+												>
+													{statusLabel[item.status]}
+												</span>
+											</div>
+											<p className="mt-1 text-sm text-slate-500">
+												{item.transfer_number} · {item.from_warehouse} →{" "}
+												{item.to_warehouse}
 											</p>
-											<p className="text-sm text-slate-500">
-												{item.movement_number} · dari {item.warehouse}
+											<p className="mt-2 text-sm text-slate-600">
+												Qty {formatNumber(item.quantity)} · {item.notes}
+											</p>
+											<p className="mt-2 text-xs text-slate-400">
+												Request: {item.requested_by ?? "-"}
+												{item.approved_by
+													? ` · Kirim: ${item.approved_by}`
+													: ""}
+												{item.received_by
+													? ` · Terima: ${item.received_by}`
+													: ""}
 											</p>
 										</div>
-										<p className="font-bold text-slate-950">
-											{formatCurrency(item.total_cost)}
-										</p>
+										<div className="space-y-3 text-left sm:text-right">
+											<p className="font-bold text-slate-950">
+												{formatCurrency(item.total_cost)}
+											</p>
+											<div className="flex flex-wrap gap-2 sm:justify-end">
+												{item.status === "draft" && (
+													<button
+														type="button"
+														onClick={() => approveTransfer(item)}
+														className="rounded-2xl bg-slate-950 px-4 py-2 text-xs font-bold text-white shadow-lg shadow-slate-300"
+													>
+														Setujui/Kirim
+													</button>
+												)}
+												{item.status === "approved" && (
+													<button
+														type="button"
+														onClick={() => receiveTransfer(item)}
+														className="rounded-2xl bg-cyan-400 px-4 py-2 text-xs font-bold text-slate-950 shadow-lg shadow-cyan-200"
+													>
+														Terima
+													</button>
+												)}
+											</div>
+										</div>
 									</div>
-									<p className="mt-3 text-sm text-slate-600">
-										Qty {formatNumber(item.quantity_out)} · {item.notes}
-									</p>
 								</div>
 							))}
 						</div>

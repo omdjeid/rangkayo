@@ -6,6 +6,7 @@ use App\Actions\Inventory\RecordStockInAction;
 use App\Http\Controllers\Controller;
 use App\Models\Inventory\InventoryMovement;
 use App\Models\Inventory\Product;
+use App\Support\BranchWarehouseOptions;
 use App\Support\CurrentTenant;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -15,15 +16,17 @@ use Inertia\Response;
 
 class StockInController extends Controller
 {
-    public function index(CurrentTenant $currentTenant): Response
+    public function index(Request $request, CurrentTenant $currentTenant): Response
     {
-        $tenant = $currentTenant->tenant();
-        $branch = $currentTenant->branch($tenant);
-        $warehouse = $currentTenant->warehouse($tenant, $branch);
+        $context = $currentTenant->context();
+        $tenant = $context->tenant;
+        $warehouse = BranchWarehouseOptions::defaultWarehouse($tenant, $context, $request->integer('warehouse_id') ?: null);
+        $branch = $currentTenant->branch($tenant, branchId: (int) $warehouse->branch_id);
 
         return Inertia::render('Inventory/StockIn/Index', [
             'branch' => $branch->only(['id', 'name', 'code']),
             'warehouse' => $warehouse->only(['id', 'name', 'code']),
+            'warehouses' => BranchWarehouseOptions::warehouses($tenant, $context),
             'products' => Product::query()
                 ->where('tenant_id', $tenant->id)
                 ->where('is_active', true)
@@ -51,17 +54,19 @@ class StockInController extends Controller
 
     public function store(Request $request, CurrentTenant $currentTenant, RecordStockInAction $recordStockIn): RedirectResponse
     {
-        $tenant = $currentTenant->tenant();
-        $branch = $currentTenant->branch($tenant);
-        $warehouse = $currentTenant->warehouse($tenant, $branch);
+        $context = $currentTenant->context();
+        $tenant = $context->tenant;
 
         $validated = $request->validate([
+            'warehouse_id' => ['required', 'integer'],
             'product_id' => ['required', Rule::exists('products', 'id')->where('tenant_id', $tenant->id)],
             'quantity' => ['required', 'numeric', 'min:0.0001'],
             'unit_cost' => ['required', 'numeric', 'min:0'],
             'payment_account_code' => ['required', Rule::in(['1010', '1020', '2010'])],
         ]);
 
+        $warehouse = BranchWarehouseOptions::resolveWarehouse($tenant, $context, (int) $validated['warehouse_id']);
+        $branch = $currentTenant->branch($tenant, branchId: (int) $warehouse->branch_id);
         $product = Product::query()->where('tenant_id', $tenant->id)->findOrFail($validated['product_id']);
 
         $recordStockIn->handle(

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Inventory\InventoryMovement;
+use App\Models\Inventory\StockTransfer;
 use App\Models\Sales\Sale;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -48,5 +49,15 @@ class Warehouse extends Model
     public function sales(): HasMany
     {
         return $this->hasMany(Sale::class);
+    }
+
+    public function outgoingStockTransfers(): HasMany
+    {
+        return $this->hasMany(StockTransfer::class, 'from_warehouse_id');
+    }
+
+    public function incomingStockTransfers(): HasMany
+    {
+        return $this->hasMany(StockTransfer::class, 'to_warehouse_id');
     }
 }

@@ -1,7 +1,7 @@
 import FormField from "@/Components/FormField";
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
 import type { PageProps } from "@/types";
-import { Head, useForm } from "@inertiajs/react";
+import { Head, router, useForm } from "@inertiajs/react";
 
 interface TenantUser {
 	id: number;
@@ -9,7 +9,9 @@ interface TenantUser {
 	email: string;
 	role: string;
 	branch_id: number | null;
+	branch_ids: number[];
 	branch: string | null;
+	branches: string[];
 	is_active: boolean;
 }
 interface Branch {
@@ -19,6 +21,12 @@ interface Branch {
 }
 const inputClass =
 	"w-full rounded-2xl border-slate-200 bg-white/80 shadow-sm focus:border-cyan-400 focus:ring-cyan-400";
+
+function branchSummary(user: TenantUser) {
+	if (user.branch_ids.length === 0) return "Semua cabang";
+
+	return user.branches.join(", ");
+}
 
 export default function TenantUsersIndex({
 	users,
@@ -37,6 +45,9 @@ export default function TenantUsersIndex({
 		password: "",
 		role: "cashier",
 		branch_id: branches[0]?.id?.toString() ?? "",
+		branch_ids: branches[0]?.id
+			? [branches[0].id.toString()]
+			: ([] as string[]),
 	});
 	const invitationForm = useForm({
 		name: "",
@@ -44,6 +55,33 @@ export default function TenantUsersIndex({
 		role: "cashier",
 		branch_id: branches[0]?.id?.toString() ?? "",
 	});
+
+	function toggleFormBranch(branchId: string) {
+		const nextBranchIds = form.data.branch_ids.includes(branchId)
+			? form.data.branch_ids.filter((id) => id !== branchId)
+			: [...form.data.branch_ids, branchId];
+
+		form.setData((data) => ({
+			...data,
+			branch_id: nextBranchIds[0] ?? "",
+			branch_ids: nextBranchIds,
+		}));
+	}
+
+	function updateUserStatus(user: TenantUser, isActive: boolean) {
+		const branchIds = user.branch_ids.map((id) => id.toString());
+
+		router.patch(
+			route("tenant-users.update", user.id),
+			{
+				role: user.role,
+				branch_id: branchIds[0] ?? "",
+				branch_ids: branchIds,
+				is_active: isActive,
+			},
+			{ preserveScroll: true },
+		);
+	}
 
 	return (
 		<AuthenticatedLayout
@@ -115,21 +153,34 @@ export default function TenantUsersIndex({
 									))}
 								</select>
 							</FormField>
-							<FormField label="Cabang">
-								<select
-									className={inputClass}
-									value={form.data.branch_id}
-									onChange={(event) =>
-										form.setData("branch_id", event.target.value)
-									}
-								>
-									<option value="">Semua cabang</option>
-									{branches.map((branch) => (
-										<option key={branch.id} value={branch.id}>
-											{branch.name}
-										</option>
-									))}
-								</select>
+							<FormField
+								label="Akses Cabang"
+								hint="Centang beberapa cabang untuk manager/staf yang menangani lebih dari satu outlet. Owner/admin/akuntan tetap bisa melihat semua cabang."
+								error={form.errors.branch_ids}
+							>
+								<div className="grid gap-2">
+									{branches.map((branch) => {
+										const id = branch.id.toString();
+
+										return (
+											<label
+												key={branch.id}
+												className="flex items-center justify-between rounded-2xl border border-white/80 bg-white/70 px-4 py-3 text-sm font-semibold text-slate-600 shadow-sm"
+											>
+												<span>
+													{branch.name}
+													{branch.code ? ` · ${branch.code}` : ""}
+												</span>
+												<input
+													type="checkbox"
+													className="rounded border-slate-300 text-cyan-500 focus:ring-cyan-400"
+													checked={form.data.branch_ids.includes(id)}
+													onChange={() => toggleFormBranch(id)}
+												/>
+											</label>
+										);
+									})}
+								</div>
 							</FormField>
 							<button className="w-full rounded-2xl bg-slate-950 px-5 py-3 font-semibold text-white shadow-lg shadow-slate-300">
 								Simpan User
@@ -220,11 +271,12 @@ export default function TenantUsersIndex({
 													{user.name}
 												</p>
 												<p className="text-sm text-slate-500">
-													{user.email} · {user.role} ·{" "}
-													{user.branch ?? "Semua cabang"}
+													{user.email} · {user.role} · {branchSummary(user)}
 												</p>
 											</div>
-											<span
+											<button
+												type="button"
+												onClick={() => updateUserStatus(user, !user.is_active)}
 												className={`rounded-full px-3 py-1 text-xs font-bold ${
 													user.is_active
 														? "bg-emerald-100 text-emerald-700"
@@ -232,7 +284,7 @@ export default function TenantUsersIndex({
 												}`}
 											>
 												{user.is_active ? "Aktif" : "Nonaktif"}
-											</span>
+											</button>
 										</div>
 									</div>
 								))}

@@ -10,6 +10,8 @@ use App\Http\Controllers\Accounting\JournalEntryController;
 use App\Http\Controllers\Accounting\ManualJournalController;
 use App\Http\Controllers\Accounting\ReportController;
 use App\Http\Controllers\BillingController;
+use App\Http\Controllers\BranchComparisonReportController;
+use App\Http\Controllers\BranchSwitchController;
 use App\Http\Controllers\BranchWarehouseController;
 use App\Http\Controllers\CashierShiftController;
 use App\Http\Controllers\ContactController;
@@ -55,6 +57,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     });
 
     Route::post('/tenant-switch/{tenant}', TenantSwitchController::class)->name('tenant.switch');
+    Route::post('/branch-switch', BranchSwitchController::class)->name('branch.switch');
 
     Route::middleware('tenant.role:owner,admin,branch_manager,cashier')->group(function () {
         Route::get('/pos', [PosController::class, 'index'])->name('pos.index');
@@ -85,6 +88,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/reports/profit-loss', [ReportController::class, 'profitLoss'])->name('reports.profit-loss');
         Route::get('/reports/balance-sheet', [ReportController::class, 'balanceSheet'])->name('reports.balance-sheet');
         Route::get('/reports/sales', SalesReportController::class)->name('reports.sales');
+        Route::get('/reports/branch-comparison', BranchComparisonReportController::class)->name('reports.branch-comparison');
         Route::get('/tenant-users', [TenantUserController::class, 'index'])->name('tenant-users.index');
         Route::post('/tenant-users', [TenantUserController::class, 'store'])->name('tenant-users.store');
         Route::patch('/tenant-users/{user}', [TenantUserController::class, 'update'])->name('tenant-users.update');
@@ -93,7 +97,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::patch('/tenant-settings', [TenantSettingsController::class, 'update'])->name('tenant-settings.update');
         Route::get('/branches-warehouses', [BranchWarehouseController::class, 'index'])->name('branches-warehouses.index');
         Route::post('/branches', [BranchWarehouseController::class, 'storeBranch'])->name('branches.store');
+        Route::patch('/branches/{branch}', [BranchWarehouseController::class, 'updateBranch'])->name('branches.update');
+        Route::patch('/branches/{branch}/status', [BranchWarehouseController::class, 'toggleBranch'])->name('branches.status');
         Route::post('/warehouses', [BranchWarehouseController::class, 'storeWarehouse'])->name('warehouses.store');
+        Route::patch('/warehouses/{warehouse}', [BranchWarehouseController::class, 'updateWarehouse'])->name('warehouses.update');
+        Route::patch('/warehouses/{warehouse}/status', [BranchWarehouseController::class, 'toggleWarehouse'])->name('warehouses.status');
         Route::get('/billing', [BillingController::class, 'index'])->name('billing.index');
     });
 
@@ -115,6 +123,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/stock-adjustments', [StockAdjustmentController::class, 'store'])->name('stock-adjustments.store');
         Route::get('/stock-transfers', [StockTransferController::class, 'index'])->name('stock-transfers.index');
         Route::post('/stock-transfers', [StockTransferController::class, 'store'])->name('stock-transfers.store');
+        Route::patch('/stock-transfers/{stockTransfer}/approve', [StockTransferController::class, 'approve'])->name('stock-transfers.approve');
+        Route::patch('/stock-transfers/{stockTransfer}/receive', [StockTransferController::class, 'receive'])->name('stock-transfers.receive');
         Route::get('/reports/stock', StockReportController::class)->name('reports.stock');
     });
 });

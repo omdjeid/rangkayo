@@ -7,26 +7,29 @@ use App\Models\Inventory\Product;
 use App\Models\Sales\CashierShift;
 use App\Models\Sales\Sale;
 use App\Models\User;
+use App\Support\BranchWarehouseOptions;
 use App\Support\CurrentTenant;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Redirect;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class PosController extends Controller
 {
-    public function index(CurrentTenant $currentTenant): Response
+    public function index(Request $request, CurrentTenant $currentTenant): Response
     {
         $context = $currentTenant->context();
         $tenant = $context->tenant;
-        $branch = $currentTenant->branch($tenant);
-        $warehouse = $currentTenant->warehouse($tenant, $branch);
+        $warehouse = BranchWarehouseOptions::defaultWarehouse($tenant, $context, $request->integer('warehouse_id') ?: null);
+        $branch = $currentTenant->branch($tenant, branchId: (int) $warehouse->branch_id);
+        $warehouses = BranchWarehouseOptions::warehouses($tenant, $context);
 
-        $openShift = request()->user() instanceof User
+        $openShift = $request->user() instanceof User
             ? CashierShift::query()
                 ->where('tenant_id', $tenant->id)
-                ->where('user_id', request()->user()->id)
+                ->where('user_id', $request->user()->id)
                 ->where('status', 'open')
                 ->latest('opened_at')
                 ->first()
@@ -42,6 +45,7 @@ class PosController extends Controller
             ] : null,
             'branch' => $branch->only(['id', 'name', 'code']),
             'warehouse' => $warehouse->only(['id', 'name', 'code']),
+            'warehouses' => $warehouses,
             'products' => Product::query()
                 ->with('unit:id,symbol')
                 ->where('tenant_id', $tenant->id)
@@ -70,8 +74,6 @@ class PosController extends Controller
     {
         $context = $currentTenant->context();
         $tenant = $context->tenant;
-        $branch = $currentTenant->branch($tenant);
-        $warehouse = $currentTenant->warehouse($tenant, $branch);
 
         $openShift = $request->user() instanceof User
             ? CashierShift::query()
@@ -87,12 +89,16 @@ class PosController extends Controller
         }
 
         $validated = $request->validate([
+            'warehouse_id' => ['required', 'integer'],
             'payment_method' => ['required', Rule::in(['cash', 'bank'])],
             'paid_total' => ['nullable', 'numeric', 'min:0'],
             'items' => ['required', 'array', 'min:1'],
             'items.*.product_id' => ['required', Rule::exists('products', 'id')->where('tenant_id', $tenant->id)],
             'items.*.quantity' => ['required', 'numeric', 'min:0.0001'],
         ]);
+
+        $warehouse = BranchWarehouseOptions::resolveWarehouse($tenant, $context, (int) $validated['warehouse_id']);
+        $branch = $currentTenant->branch($tenant, branchId: (int) $warehouse->branch_id);
 
         $sale = $checkout->handle(
             tenant: $tenant,
@@ -105,7 +111,7 @@ class PosController extends Controller
             shift: $openShift,
         );
 
-        return back()
+        return Redirect::route('pos.index', ['warehouse_id' => $warehouse->id])
             ->with('success', 'Transaksi berhasil disimpan. Stok dan pembukuan sudah diperbarui.')
             ->with('receipt_url', route('pos.receipt', $sale));
     }

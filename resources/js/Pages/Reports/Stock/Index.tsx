@@ -58,7 +58,11 @@ export default function StockReportIndex({
 	rows,
 	isBranchScoped,
 }: PageProps<{
-	filters: { branch_id: number | null; warehouse_id: number | null; as_of_date: string };
+	filters: {
+		branch_id: number | null;
+		warehouse_id: number | null;
+		as_of_date: string;
+	};
 	branches: Branch[];
 	warehouses: Warehouse[];
 	summary: Summary;
@@ -96,7 +100,11 @@ export default function StockReportIndex({
 								value={form.branch_id}
 								disabled={isBranchScoped}
 								onChange={(e) =>
-									setForm({ ...form, branch_id: e.target.value, warehouse_id: "" })
+									setForm({
+										...form,
+										branch_id: e.target.value,
+										warehouse_id: "",
+									})
 								}
 							>
 								<option value="">Semua cabang</option>
@@ -109,7 +117,9 @@ export default function StockReportIndex({
 							<select
 								className={inputClass}
 								value={form.warehouse_id}
-								onChange={(e) => setForm({ ...form, warehouse_id: e.target.value })}
+								onChange={(e) =>
+									setForm({ ...form, warehouse_id: e.target.value })
+								}
 							>
 								<option value="">Semua gudang</option>
 								{warehouses.map((warehouse) => (
@@ -122,7 +132,9 @@ export default function StockReportIndex({
 								className={inputClass}
 								type="date"
 								value={form.as_of_date}
-								onChange={(e) => setForm({ ...form, as_of_date: e.target.value })}
+								onChange={(e) =>
+									setForm({ ...form, as_of_date: e.target.value })
+								}
 							/>
 							<button
 								onClick={apply}
@@ -145,7 +157,9 @@ export default function StockReportIndex({
 								className="rounded-[1.75rem] border border-white/75 bg-white/75 p-6 shadow-xl shadow-slate-200/70"
 							>
 								<p className="text-sm text-slate-500">{label}</p>
-								<p className="mt-2 text-3xl font-bold text-slate-950">{value}</p>
+								<p className="mt-2 text-3xl font-bold text-slate-950">
+									{value}
+								</p>
 							</div>
 						))}
 					</section>
@@ -167,17 +181,27 @@ export default function StockReportIndex({
 								</thead>
 								<tbody className="divide-y divide-slate-100">
 									{rows.map((row) => (
-										<tr key={`${row.product_id}-${row.branch}-${row.warehouse}`}>
+										<tr
+											key={`${row.product_id}-${row.branch}-${row.warehouse}`}
+										>
 											<td className="px-5 py-4">
-												<p className="font-semibold text-slate-950">{row.product}</p>
+												<p className="font-semibold text-slate-950">
+													{row.product}
+												</p>
 												<p className="text-xs text-slate-500">
 													{row.sku ?? "Tanpa SKU"} · {row.unit ?? "unit"}
 												</p>
 											</td>
 											<td className="px-5 py-4 text-slate-600">{row.branch}</td>
-											<td className="px-5 py-4 text-slate-600">{row.warehouse}</td>
-											<td className="px-5 py-4 text-right">{formatNumber(row.quantity_in)}</td>
-											<td className="px-5 py-4 text-right">{formatNumber(row.quantity_out)}</td>
+											<td className="px-5 py-4 text-slate-600">
+												{row.warehouse}
+											</td>
+											<td className="px-5 py-4 text-right">
+												{formatNumber(row.quantity_in)}
+											</td>
+											<td className="px-5 py-4 text-right">
+												{formatNumber(row.quantity_out)}
+											</td>
 											<td className="px-5 py-4 text-right font-bold text-slate-950">
 												{formatNumber(row.stock_on_hand)}
 											</td>

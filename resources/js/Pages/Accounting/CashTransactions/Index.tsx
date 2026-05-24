@@ -111,13 +111,16 @@ export default function CashTransactionsIndex({
 											type,
 											counter_account_id:
 												type === "transfer"
-													? (cashAccounts.find(
-															(account) =>
-																account.id.toString() !== data.cash_account_id,
-														)?.id.toString() ?? "")
-													: (counterAccounts.find(
-															(account) => account.type === "expense",
-														)?.id.toString() ??
+													? (cashAccounts
+															.find(
+																(account) =>
+																	account.id.toString() !==
+																	data.cash_account_id,
+															)
+															?.id.toString() ?? "")
+													: (counterAccounts
+															.find((account) => account.type === "expense")
+															?.id.toString() ??
 														counterAccounts[0]?.id?.toString() ??
 														""),
 										}));
@@ -129,9 +132,17 @@ export default function CashTransactionsIndex({
 								</select>
 							</FormField>
 							<FormField
-								label={form.data.type === "transfer" ? "Dari Akun Kas/Bank" : "Akun Kas/Bank"}
+								label={
+									form.data.type === "transfer"
+										? "Dari Akun Kas/Bank"
+										: "Akun Kas/Bank"
+								}
 								required
-								hint={form.data.type === "transfer" ? "Akun kas/bank asal dana." : "Akun yang menerima atau mengeluarkan uang."}
+								hint={
+									form.data.type === "transfer"
+										? "Akun kas/bank asal dana."
+										: "Akun yang menerima atau mengeluarkan uang."
+								}
 								error={form.errors.cash_account_id}
 							>
 								<select
@@ -143,10 +154,14 @@ export default function CashTransactionsIndex({
 											...data,
 											cash_account_id: cashAccountId,
 											counter_account_id:
-												data.type === "transfer" && data.counter_account_id === cashAccountId
-													? (cashAccounts.find(
-															(account) => account.id.toString() !== cashAccountId,
-														)?.id.toString() ?? "")
+												data.type === "transfer" &&
+												data.counter_account_id === cashAccountId
+													? (cashAccounts
+															.find(
+																(account) =>
+																	account.id.toString() !== cashAccountId,
+															)
+															?.id.toString() ?? "")
 													: data.counter_account_id,
 										}));
 									}}
@@ -159,9 +174,17 @@ export default function CashTransactionsIndex({
 								</select>
 							</FormField>
 							<FormField
-								label={form.data.type === "transfer" ? "Ke Akun Kas/Bank" : "Akun Lawan"}
+								label={
+									form.data.type === "transfer"
+										? "Ke Akun Kas/Bank"
+										: "Akun Lawan"
+								}
 								required
-								hint={form.data.type === "transfer" ? "Akun kas/bank tujuan dana." : "Untuk pengeluaran pilih akun beban/aset; untuk pemasukan pilih pendapatan/modal/piutang sesuai kasus."}
+								hint={
+									form.data.type === "transfer"
+										? "Akun kas/bank tujuan dana."
+										: "Untuk pengeluaran pilih akun beban/aset; untuk pemasukan pilih pendapatan/modal/piutang sesuai kasus."
+								}
 								error={form.errors.counter_account_id}
 							>
 								<select
@@ -265,7 +288,11 @@ export default function CashTransactionsIndex({
 										<div
 											className={`rounded-2xl px-4 py-2 text-sm font-bold ${transaction.type === "income" ? "bg-emerald-50 text-emerald-700" : transaction.type === "transfer" ? "bg-cyan-50 text-cyan-700" : "bg-rose-50 text-rose-700"}`}
 										>
-											{transaction.type === "income" ? "+" : transaction.type === "expense" ? "-" : "↔"}{" "}
+											{transaction.type === "income"
+												? "+"
+												: transaction.type === "expense"
+													? "-"
+													: "↔"}{" "}
 											{formatCurrency(transaction.amount)}
 											<span className="ml-2 text-xs font-semibold opacity-80">
 												{transactionLabel(transaction.type)}

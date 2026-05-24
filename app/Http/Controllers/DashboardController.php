@@ -15,9 +15,9 @@ class DashboardController extends Controller
     {
         $context = $currentTenant->context();
         $tenant = $context->tenant;
-        $branch = $currentTenant->branch($tenant);
-        $warehouse = $currentTenant->warehouse($tenant, $branch);
-        $branchId = $context->isBranchScoped() ? $branch->id : null;
+        $branch = $context->branch;
+        $branchId = $branch?->id;
+        $warehouse = $branch !== null ? $currentTenant->warehouse($tenant, $branch) : null;
 
         $salesQuery = Sale::query()->where('tenant_id', $tenant->id);
         $inventoryQuery = $tenant->inventoryMovements();
@@ -40,8 +40,8 @@ class DashboardController extends Controller
 
         return Inertia::render('Dashboard', [
             'tenant' => $tenant->only(['id', 'name', 'slug']),
-            'branch' => $branch->only(['id', 'name', 'code']),
-            'warehouse' => $warehouse->only(['id', 'name', 'code']),
+            'branch' => $branch?->only(['id', 'name', 'code']),
+            'warehouse' => $warehouse?->only(['id', 'name', 'code']),
             'metrics' => [
                 'salesToday' => $salesToday,
                 'inventoryValue' => $inventoryValue,

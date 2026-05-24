@@ -5,8 +5,8 @@ import { Head, Link } from "@inertiajs/react";
 
 interface DashboardProps extends Record<string, unknown> {
 	tenant: { name: string };
-	branch: { name: string; code: string | null };
-	warehouse: { name: string; code: string | null };
+	branch: { name: string; code: string | null } | null;
+	warehouse: { name: string; code: string | null } | null;
 	metrics: {
 		salesToday: number;
 		inventoryValue: number;
@@ -30,6 +30,10 @@ export default function Dashboard({
 	metrics,
 	recentSales,
 }: PageProps<DashboardProps>) {
+	const scopeLabel = branch
+		? `${branch.name}${warehouse ? ` · ${warehouse.name}` : ""}`
+		: "Konsolidasi semua cabang";
+
 	const cards = [
 		{
 			label: "Penjualan hari ini",
@@ -76,7 +80,7 @@ export default function Dashboard({
 			header={
 				<div>
 					<p className="text-sm font-medium text-slate-500">
-						{tenant.name} · {branch.name} · {warehouse.name}
+						{tenant.name} · {scopeLabel}
 					</p>
 					<h2 className="text-2xl font-semibold tracking-tight text-slate-950">
 						Dashboard Operasional
@@ -95,8 +99,8 @@ export default function Dashboard({
 									Ringkasan operasional
 								</div>
 								<h1 className="max-w-3xl text-4xl font-semibold tracking-[-0.03em] text-slate-950">
-									Pantau penjualan, stok, dan pembukuan cabang dalam satu
-									tempat.
+									Pantau penjualan, stok, dan pembukuan{" "}
+									{branch ? "cabang" : "semua cabang"} dalam satu tempat.
 								</h1>
 								<p className="mt-4 max-w-2xl text-base leading-7 text-slate-600">
 									Gunakan shortcut di bawah untuk membuka modul operasional

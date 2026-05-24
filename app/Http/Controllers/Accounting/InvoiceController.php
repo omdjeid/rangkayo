@@ -8,7 +8,7 @@ use App\Models\Accounting\Account;
 use App\Models\Accounting\Invoice;
 use App\Models\Contact;
 use App\Models\Inventory\Product;
-use App\Models\Warehouse;
+use App\Support\BranchWarehouseOptions;
 use App\Support\CurrentTenant;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -20,8 +20,8 @@ class InvoiceController extends Controller
 {
     public function index(CurrentTenant $currentTenant): Response
     {
-        $tenant = $currentTenant->tenant();
-        $branch = $currentTenant->branch($tenant);
+        $context = $currentTenant->context();
+        $tenant = $context->tenant;
 
         return Inertia::render('Accounting/Invoices/Index', [
             'invoices' => Invoice::query()
@@ -45,14 +45,14 @@ class InvoiceController extends Controller
             'contacts' => Contact::query()->where('tenant_id', $tenant->id)->orderBy('name')->get(['id', 'name', 'type']),
             'accounts' => Account::query()->where('tenant_id', $tenant->id)->where('is_active', true)->orderBy('code')->get(['id', 'code', 'name', 'type']),
             'products' => Product::query()->where('tenant_id', $tenant->id)->where('is_active', true)->orderBy('name')->get(['id', 'sku', 'name', 'cost_price']),
-            'warehouses' => Warehouse::query()->where('tenant_id', $tenant->id)->where('branch_id', $branch->id)->where('is_active', true)->orderBy('name')->get(['id', 'name', 'code']),
+            'warehouses' => BranchWarehouseOptions::warehouses($tenant, $context),
         ]);
     }
 
     public function store(Request $request, CurrentTenant $currentTenant, CreateInvoiceAction $createInvoice): RedirectResponse
     {
-        $tenant = $currentTenant->tenant();
-        $branch = $currentTenant->branch($tenant);
+        $context = $currentTenant->context();
+        $tenant = $context->tenant;
 
         $validated = $request->validate([
             'type' => ['required', Rule::in(['sales', 'purchase'])],
@@ -63,13 +63,23 @@ class InvoiceController extends Controller
             'items' => ['required', 'array', 'min:1'],
             'items.*.account_id' => ['required', Rule::exists('accounts', 'id')->where('tenant_id', $tenant->id)],
             'items.*.product_id' => ['nullable', Rule::exists('products', 'id')->where('tenant_id', $tenant->id)],
-            'items.*.warehouse_id' => ['nullable', Rule::exists('warehouses', 'id')->where('tenant_id', $tenant->id)],
+            'items.*.warehouse_id' => ['nullable', 'integer'],
             'items.*.description' => ['required', 'string', 'max:255'],
             'items.*.quantity' => ['required', 'numeric', 'min:0.0001'],
             'items.*.unit_price' => ['required', 'numeric', 'min:0'],
         ]);
 
         $contact = isset($validated['contact_id']) ? Contact::query()->where('tenant_id', $tenant->id)->find($validated['contact_id']) : null;
+        $firstWarehouseId = collect($validated['items'])
+            ->first(fn (array $item): bool => ! empty($item['warehouse_id']))['warehouse_id'] ?? null;
+        $branch = null;
+
+        if ($firstWarehouseId !== null) {
+            $warehouse = BranchWarehouseOptions::resolveWarehouse($tenant, $context, (int) $firstWarehouseId);
+            $branch = $currentTenant->branch($tenant, branchId: (int) $warehouse->branch_id);
+        } elseif ($context->branch !== null) {
+            $branch = $context->branch;
+        }
 
         $createInvoice->handle(
             tenant: $tenant,

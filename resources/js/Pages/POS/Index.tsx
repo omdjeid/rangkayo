@@ -1,7 +1,7 @@
 import ApplicationLogo from "@/Components/ApplicationLogo";
 import FormField from "@/Components/FormField";
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
-import type { PageProps } from "@/types";
+import type { PageProps, WarehouseOption } from "@/types";
 import { formatCurrency, formatNumber } from "@/utils/format";
 import { Head, Link, useForm } from "@inertiajs/react";
 import { useMemo, useState } from "react";
@@ -36,13 +36,15 @@ function PosWorkspace({
 	recentSales,
 	branch,
 	warehouse,
+	warehouses,
 	openShift,
 	requiresShift,
 }: {
 	products: Product[];
 	recentSales: Sale[];
 	branch: { name: string };
-	warehouse: { name: string };
+	warehouse: { id: number; name: string };
+	warehouses: WarehouseOption[];
 	openShift: {
 		id: number;
 		opened_at: string;
@@ -53,6 +55,7 @@ function PosWorkspace({
 }) {
 	const [cart, setCart] = useState<CartItem[]>([]);
 	const form = useForm({
+		warehouse_id: warehouse.id.toString(),
 		payment_method: "cash",
 		paid_total: "",
 		items: [] as { product_id: number; quantity: number }[],
@@ -94,6 +97,7 @@ function PosWorkspace({
 	function checkout(event: React.FormEvent) {
 		event.preventDefault();
 		form.setData({
+			warehouse_id: form.data.warehouse_id,
 			payment_method: form.data.payment_method,
 			paid_total: form.data.paid_total || total.toString(),
 			items: cart.map((item) => ({
@@ -101,7 +105,7 @@ function PosWorkspace({
 				quantity: item.quantity,
 			})),
 		});
-		form.post(route("pos.checkout"), {
+		form.post(route("pos.checkout", { warehouse_id: form.data.warehouse_id }), {
 			preserveScroll: true,
 			onSuccess: () => {
 				setCart([]);
@@ -259,6 +263,32 @@ function PosWorkspace({
 
 						<div className="mt-4 space-y-3">
 							<FormField
+								label="Gudang stok"
+								required
+								hint="Pilih gudang yang stoknya akan dikurangi untuk transaksi ini."
+								error={form.errors.warehouse_id}
+							>
+								<select
+									className={inputClass}
+									value={form.data.warehouse_id}
+									onChange={(e) => {
+										form.setData("warehouse_id", e.target.value);
+										window.location.href = route("pos.index", {
+											warehouse_id: e.target.value,
+										});
+									}}
+								>
+									{warehouses.map((option) => (
+										<option key={option.id} value={option.id}>
+											{option.branch_name ? `${option.branch_name} · ` : ""}
+											{option.name}
+											{option.is_default ? " · default" : ""}
+										</option>
+									))}
+								</select>
+							</FormField>
+
+							<FormField
 								label="Metode Pembayaran"
 								required
 								hint="Tunai masuk akun Kas, Bank/QRIS masuk akun Bank."
@@ -330,13 +360,15 @@ export default function PosIndex({
 	recentSales,
 	branch,
 	warehouse,
+	warehouses,
 	mode,
 	openShift,
 }: PageProps<{
 	products: Product[];
 	recentSales: Sale[];
 	branch: { name: string };
-	warehouse: { name: string };
+	warehouse: { id: number; name: string };
+	warehouses: WarehouseOption[];
 	mode: "admin" | "cashier";
 	openShift: {
 		id: number;
@@ -388,6 +420,7 @@ export default function PosIndex({
 					recentSales={recentSales}
 					branch={branch}
 					warehouse={warehouse}
+					warehouses={warehouses}
 					openShift={openShift}
 					requiresShift
 				/>
@@ -414,6 +447,7 @@ export default function PosIndex({
 				recentSales={recentSales}
 				branch={branch}
 				warehouse={warehouse}
+				warehouses={warehouses}
 				openShift={openShift}
 				requiresShift={false}
 			/>

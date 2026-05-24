@@ -113,7 +113,9 @@ export default function BalanceSheet({
 							<select
 								className={inputClass}
 								value={form.branch_id}
-								onChange={(e) => setForm({ ...form, branch_id: e.target.value })}
+								onChange={(e) =>
+									setForm({ ...form, branch_id: e.target.value })
+								}
 							>
 								<option value="">Konsolidasi semua cabang</option>
 								{branches.map((branch) => (

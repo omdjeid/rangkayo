@@ -1,6 +1,6 @@
 import FormField from "@/Components/FormField";
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
-import type { PageProps } from "@/types";
+import type { PageProps, WarehouseOption } from "@/types";
 import { formatCurrency, formatNumber } from "@/utils/format";
 import { Head, useForm } from "@inertiajs/react";
 
@@ -31,13 +31,16 @@ export default function StockInIndex({
 	movements,
 	branch,
 	warehouse,
+	warehouses,
 }: PageProps<{
 	products: Product[];
 	movements: Movement[];
 	branch: { name: string };
-	warehouse: { name: string };
+	warehouse: { id: number; name: string };
+	warehouses: WarehouseOption[];
 }>) {
 	const form = useForm({
+		warehouse_id: warehouse.id.toString(),
 		product_id: products[0]?.id?.toString() ?? "",
 		quantity: "1",
 		unit_cost: products[0]?.cost_price?.toString() ?? "0",
@@ -46,7 +49,13 @@ export default function StockInIndex({
 
 	function submit(event: React.FormEvent) {
 		event.preventDefault();
-		form.post(route("stock-in.store"), { preserveScroll: true });
+		form.post(
+			route("stock-in.store", { warehouse_id: form.data.warehouse_id }),
+			{
+				preserveScroll: true,
+				onSuccess: () => form.reset("quantity"),
+			},
+		);
 	}
 
 	return (
@@ -74,6 +83,27 @@ export default function StockInIndex({
 							Input Stok Masuk
 						</h3>
 						<div className="mt-5 space-y-4">
+							<FormField
+								label="Gudang tujuan"
+								required
+								hint="Pilih gudang yang menerima stok masuk."
+								error={form.errors.warehouse_id}
+							>
+								<select
+									className={inputClass}
+									value={form.data.warehouse_id}
+									onChange={(e) => form.setData("warehouse_id", e.target.value)}
+								>
+									{warehouses.map((option) => (
+										<option key={option.id} value={option.id}>
+											{option.branch_name ? `${option.branch_name} · ` : ""}
+											{option.name}
+											{option.is_default ? " · default" : ""}
+										</option>
+									))}
+								</select>
+							</FormField>
+
 							<FormField
 								label="Produk"
 								required

@@ -1,6 +1,6 @@
 import FormField from "@/Components/FormField";
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
-import type { PageProps } from "@/types";
+import type { PageProps, WarehouseOption } from "@/types";
 import { formatCurrency } from "@/utils/format";
 import { Head, useForm } from "@inertiajs/react";
 
@@ -14,6 +14,12 @@ interface Account {
 	code: string;
 	name: string;
 	type: string;
+}
+interface Product {
+	id: number;
+	sku: string | null;
+	name: string;
+	cost_price: string | number;
 }
 interface Invoice {
 	id: number;
@@ -34,10 +40,14 @@ export default function InvoicesIndex({
 	invoices,
 	contacts,
 	accounts,
+	products,
+	warehouses,
 }: PageProps<{
 	invoices: Invoice[];
 	contacts: Contact[];
 	accounts: Account[];
+	products: Product[];
+	warehouses: WarehouseOption[];
 }>) {
 	const invoiceForm = useForm({
 		type: "sales",
@@ -49,6 +59,8 @@ export default function InvoicesIndex({
 			{
 				account_id:
 					accounts.find((a) => a.code === "4010")?.id ?? accounts[0]?.id ?? "",
+				product_id: "",
+				warehouse_id: warehouses[0]?.id?.toString() ?? "",
 				description: "Item invoice",
 				quantity: "1",
 				unit_price: "0",
@@ -76,8 +88,35 @@ export default function InvoicesIndex({
 	}
 	function submitInvoice(e: React.FormEvent) {
 		e.preventDefault();
-		invoiceForm.post(route("invoices.store"), { preserveScroll: true });
+		invoiceForm.post(route("invoices.store"), {
+			preserveScroll: true,
+			onSuccess: () => invoiceForm.reset("notes"),
+		});
 	}
+	function addItem() {
+		invoiceForm.setData("items", [
+			...invoiceForm.data.items,
+			{
+				account_id:
+					accounts.find((a) => a.code === "4010")?.id ?? accounts[0]?.id ?? "",
+				product_id: "",
+				warehouse_id: warehouses[0]?.id?.toString() ?? "",
+				description: "Item invoice",
+				quantity: "1",
+				unit_price: "0",
+			},
+		]);
+	}
+
+	function removeItem(index: number) {
+		if (invoiceForm.data.items.length <= 1) return;
+
+		invoiceForm.setData(
+			"items",
+			invoiceForm.data.items.filter((_, i) => i !== index),
+		);
+	}
+
 	function submitPayment(e: React.FormEvent) {
 		e.preventDefault();
 		paymentForm.post(route("invoice-payments.store"), {
@@ -163,6 +202,20 @@ export default function InvoicesIndex({
 										key={index}
 										className="rounded-3xl border border-slate-200 bg-white/75 p-4"
 									>
+										<div className="mb-3 flex items-center justify-between gap-3">
+											<p className="text-sm font-bold text-slate-700">
+												Baris #{index + 1}
+											</p>
+											{invoiceForm.data.items.length > 1 && (
+												<button
+													type="button"
+													className="rounded-full bg-rose-50 px-3 py-1 text-xs font-bold text-rose-600"
+													onClick={() => removeItem(index)}
+												>
+													Hapus
+												</button>
+											)}
+										</div>
 										<FormField label="Akun Pendapatan/Beban" required>
 											<select
 												className={inputClass}
@@ -178,6 +231,60 @@ export default function InvoicesIndex({
 												))}
 											</select>
 										</FormField>
+										<div className="mt-3 grid gap-3 md:grid-cols-2">
+											<FormField label="Produk stok">
+												<select
+													className={inputClass}
+													value={item.product_id}
+													onChange={(e) => {
+														const product = products.find(
+															(option) =>
+																option.id.toString() === e.target.value,
+														);
+														setItem(index, "product_id", e.target.value);
+														if (product) {
+															setItem(index, "description", product.name);
+															setItem(
+																index,
+																"unit_price",
+																product.cost_price.toString(),
+															);
+														}
+													}}
+												>
+													<option value="">Non-stok / jasa</option>
+													{products.map((product) => (
+														<option key={product.id} value={product.id}>
+															{product.sku ? `${product.sku} · ` : ""}
+															{product.name}
+														</option>
+													))}
+												</select>
+											</FormField>
+											<FormField
+												label="Gudang item"
+												hint="Wajib untuk pembelian produk stok."
+											>
+												<select
+													className={inputClass}
+													value={item.warehouse_id}
+													onChange={(e) =>
+														setItem(index, "warehouse_id", e.target.value)
+													}
+												>
+													<option value="">Pilih gudang</option>
+													{warehouses.map((option) => (
+														<option key={option.id} value={option.id}>
+															{option.branch_name
+																? `${option.branch_name} · `
+																: ""}
+															{option.name}
+															{option.is_default ? " · default" : ""}
+														</option>
+													))}
+												</select>
+											</FormField>
+										</div>
 										<div className="mt-3 grid gap-3 md:grid-cols-3">
 											<FormField label="Deskripsi">
 												<input
@@ -213,6 +320,13 @@ export default function InvoicesIndex({
 										</div>
 									</div>
 								))}
+								<button
+									type="button"
+									className="w-full rounded-2xl border border-cyan-200 bg-cyan-50 px-5 py-3 font-bold text-cyan-700 shadow-sm transition hover:bg-cyan-100"
+									onClick={addItem}
+								>
+									Tambah Baris Invoice
+								</button>
 								<button className="w-full rounded-2xl bg-slate-950 px-5 py-3 font-semibold text-white shadow-lg shadow-slate-300">
 									Simpan Invoice
 								</button>

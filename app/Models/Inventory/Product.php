@@ -62,6 +62,11 @@ class Product extends Model
         return $this->hasMany(SaleItem::class);
     }
 
+    public function stockTransfers(): HasMany
+    {
+        return $this->hasMany(StockTransfer::class);
+    }
+
     public function stockOnHand(?int $warehouseId = null): float
     {
         $query = $this->inventoryMovements();

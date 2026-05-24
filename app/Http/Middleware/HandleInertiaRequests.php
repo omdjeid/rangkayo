@@ -35,12 +35,25 @@ class HandleInertiaRequests extends Middleware
         $user = $request->user();
         $workspace = null;
         $workspaces = [];
+        $branches = [];
 
         if ($user instanceof User) {
             try {
                 $currentTenant = app(CurrentTenant::class);
-                $workspace = $currentTenant->context($user)->toSharedArray();
+                $context = $currentTenant->context($user);
+                $workspace = $context->toSharedArray();
                 $workspaces = $currentTenant->availableWorkspaces($user);
+                $branches = $context->tenant->branches()
+                    ->where('is_active', true)
+                    ->when($context->isBranchScoped(), fn ($query) => $query->whereIn('id', $context->branchIds))
+                    ->orderBy('name')
+                    ->get(['id', 'name', 'code'])
+                    ->map(fn ($branch): array => [
+                        'id' => $branch->id,
+                        'name' => $branch->name,
+                        'code' => $branch->code,
+                    ])
+                    ->values();
             } catch (RuntimeException) {
                 $workspace = null;
             }
@@ -52,6 +65,7 @@ class HandleInertiaRequests extends Middleware
                 'user' => $user,
                 'workspace' => $workspace,
                 'workspaces' => $workspaces,
+                'branches' => $branches,
             ],
         ];
     }

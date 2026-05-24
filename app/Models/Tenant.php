@@ -11,6 +11,7 @@ use App\Models\Accounting\JournalEntry;
 use App\Models\Inventory\InventoryMovement;
 use App\Models\Inventory\Product;
 use App\Models\Inventory\ProductCategory;
+use App\Models\Inventory\StockTransfer;
 use App\Models\Inventory\Unit;
 use App\Models\Sales\CashierShift;
 use App\Models\Sales\Sale;
@@ -74,6 +75,11 @@ class Tenant extends Model
         return $this->hasMany(Warehouse::class);
     }
 
+    public function tenantUserBranches(): HasMany
+    {
+        return $this->hasMany(TenantUserBranch::class);
+    }
+
     public function accounts(): HasMany
     {
         return $this->hasMany(Account::class);
@@ -132,6 +138,11 @@ class Tenant extends Model
     public function inventoryMovements(): HasMany
     {
         return $this->hasMany(InventoryMovement::class);
+    }
+
+    public function stockTransfers(): HasMany
+    {
+        return $this->hasMany(StockTransfer::class);
     }
 
     public function sales(): HasMany

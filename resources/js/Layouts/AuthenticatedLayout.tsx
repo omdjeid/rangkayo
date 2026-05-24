@@ -1,7 +1,12 @@
 import ApplicationLogo from "@/Components/ApplicationLogo";
 import Dropdown from "@/Components/Dropdown";
 import ResponsiveNavLink from "@/Components/ResponsiveNavLink";
-import type { PageProps, Workspace, WorkspaceOption } from "@/types";
+import type {
+	BranchOption,
+	PageProps,
+	Workspace,
+	WorkspaceOption,
+} from "@/types";
 import { Link, usePage } from "@inertiajs/react";
 import {
 	type PropsWithChildren,
@@ -162,7 +167,7 @@ const navigationGroups: NavigationGroup[] = [
 			{
 				name: "Penjualan",
 				href: "reports.sales",
-				roles: ["owner", "admin", "accountant"],
+				roles: ["owner", "admin", "accountant", "branch_manager"],
 			},
 			{
 				name: "Stok",
@@ -174,6 +179,11 @@ const navigationGroups: NavigationGroup[] = [
 					"branch_manager",
 					"warehouse_staff",
 				],
+			},
+			{
+				name: "Perbandingan Cabang",
+				href: "reports.branch-comparison",
+				roles: ["owner", "admin", "accountant"],
 			},
 			{
 				name: "User & Akses",
@@ -347,6 +357,83 @@ function SidebarContent({
 	);
 }
 
+function BranchSwitcher({
+	branches,
+	workspace,
+}: {
+	branches: BranchOption[];
+	workspace: Workspace | null;
+}) {
+	if (
+		!workspace ||
+		!["owner", "admin", "accountant"].includes(workspace.role)
+	) {
+		return null;
+	}
+
+	const activeLabel = workspace.branch?.name ?? "Semua Cabang";
+
+	return (
+		<Dropdown>
+			<Dropdown.Trigger>
+				<button className="hidden items-center gap-2 rounded-full border border-white/80 bg-white/75 px-4 py-2 text-xs font-bold text-slate-600 shadow-sm shadow-slate-200/70 backdrop-blur-xl transition hover:-translate-y-0.5 hover:bg-white hover:text-slate-950 sm:inline-flex">
+					<span className="flex h-2 w-2 rounded-full bg-cyan-400 shadow-sm shadow-cyan-200" />
+					<span className="max-w-[9rem] truncate">{activeLabel}</span>
+				</button>
+			</Dropdown.Trigger>
+			<Dropdown.Content
+				width="64"
+				contentClasses="overflow-hidden rounded-3xl border border-white/80 bg-white/90 p-2 shadow-2xl shadow-slate-200/80 backdrop-blur-2xl"
+			>
+				<div className="px-3 pb-2 pt-1">
+					<p className="text-[0.65rem] font-bold uppercase tracking-[0.22em] text-slate-400">
+						Konteks Cabang
+					</p>
+					<p className="mt-1 text-xs font-medium text-slate-500">
+						Pilih fokus kerja untuk dashboard dan transaksi baru.
+					</p>
+				</div>
+				<Dropdown.Link
+					href={route("branch.switch")}
+					method="post"
+					data={{ branch_id: "" }}
+					as="button"
+					className={`rounded-2xl px-3 py-2 font-semibold ${
+						workspace.branch
+							? "text-slate-600 hover:bg-slate-100"
+							: "bg-slate-950 text-white hover:bg-slate-900 focus:bg-slate-900"
+					}`}
+				>
+					Semua Cabang
+				</Dropdown.Link>
+				{branches.map((branch) => {
+					const isActive = workspace.branch?.id === branch.id;
+
+					return (
+						<Dropdown.Link
+							key={branch.id}
+							href={route("branch.switch")}
+							method="post"
+							data={{ branch_id: branch.id }}
+							as="button"
+							className={`mt-1 rounded-2xl px-3 py-2 font-semibold ${
+								isActive
+									? "bg-cyan-100 text-cyan-800 hover:bg-cyan-100 focus:bg-cyan-100"
+									: "text-slate-600 hover:bg-slate-100"
+							}`}
+						>
+							<span className="block truncate">
+								{branch.name}
+								{branch.code ? ` · ${branch.code}` : ""}
+							</span>
+						</Dropdown.Link>
+					);
+				})}
+			</Dropdown.Content>
+		</Dropdown>
+	);
+}
+
 function WorkspaceSwitcher({ workspaces }: { workspaces: WorkspaceOption[] }) {
 	if (workspaces.length <= 1) return null;
 
@@ -377,7 +464,8 @@ export default function Authenticated({
 	header,
 	children,
 }: PropsWithChildren<{ header?: ReactNode }>) {
-	const { user, workspace, workspaces } = usePage<PageProps>().props.auth;
+	const { user, workspace, workspaces, branches } =
+		usePage<PageProps>().props.auth;
 	const [showingNavigationDropdown, setShowingNavigationDropdown] =
 		useState(false);
 
@@ -418,7 +506,10 @@ export default function Authenticated({
 						</div>
 
 						<div className="hidden lg:block">
-							<p className="text-sm font-semibold text-slate-500">
+							<p className="text-[0.65rem] font-bold uppercase tracking-[0.22em] text-slate-400">
+								Konteks Aktif
+							</p>
+							<p className="text-sm font-semibold text-slate-600">
 								{workspace?.branch?.name ?? workspace?.name ?? "Usaha Aktif"}
 							</p>
 						</div>
@@ -432,6 +523,7 @@ export default function Authenticated({
 									Super Admin
 								</Link>
 							)}
+							<BranchSwitcher branches={branches} workspace={workspace} />
 							<WorkspaceSwitcher workspaces={workspaces} />
 							{workspace && (
 								<span className="hidden rounded-full border border-white/70 bg-white/70 px-3 py-1 text-xs font-bold text-slate-500 shadow-sm sm:inline-flex">

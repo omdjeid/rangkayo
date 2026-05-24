@@ -144,6 +144,14 @@ Checklist ini menentukan kapan project boleh dianggap siap live production. Item
 - [x] Jalankan audit readiness akhir: formatter, test penuh, build frontend, audit dependency, LSP diagnostics, migrasi fresh PostgreSQL/SQLite, dan smoke test browser.
 - [x] Siapkan deployment package: build asset, cache config/route/view, queue worker, scheduler, dan rollback plan.
 
+### Multi-Cabang Advanced
+
+- [x] Buat branch switcher untuk owner/admin dan active branch context.
+- [x] Buat gudang selector eksplisit di POS, stok masuk, stock adjustment, purchase/invoice inventory.
+- [x] Buat multi-branch access per user.
+- [x] Buat approval transfer stok: draft, approve/kirim, receive/terima.
+- [x] Buat report perbandingan cabang.
+
 ### Post-Launch / Phase 2
 
 - [ ] Rancang offline mode POS dengan IndexedDB dan sync.
@@ -153,6 +161,42 @@ Checklist ini menentukan kapan project boleh dianggap siap live production. Item
 - [ ] Monitoring produksi: error tracking, uptime check, metric queue, dan alerting.
 
 ## Progress Log
+
+### 2026-05-24
+
+- Mulai peningkatan multi cabang/gudang: cabang dan gudang harus bisa diedit/nonaktif, gudang default bisa diatur, dan UX manajemen dibuat lebih jelas untuk owner/admin.
+- Manajemen Cabang & Gudang ditingkatkan: cabang bisa diedit/aktif-nonaktif, gudang bisa diedit/pindah cabang/set default/aktif-nonaktif, serta UI daftar cabang menampilkan status dan form edit inline dengan gaya soft glass.
+- Validasi multi cabang/gudang: `php artisan test --filter=MvpFlowTest` berhasil — 6 passed, 46 assertions.
+- Validasi frontend multi cabang/gudang: `npm run build` berhasil.
+- Validasi LSP multi cabang/gudang: 0 diagnostics pada controller, route, test, dan halaman TS terkait.
+- Mulai penyelesaian multi-cabang advanced: branch switcher owner/admin, selector gudang eksplisit di transaksi, akses multi-cabang per user, approval transfer stok, dan report perbandingan cabang.
+- Melanjutkan sesi terputus: fokus pertama branch switcher owner/admin dan active branch context, sambil menjaga backlog lengkap tetap di bagian Multi-Cabang Advanced.
+- Branch switcher + active branch context selesai: owner/admin/accountant bisa memilih Semua Cabang atau cabang aktif dari navbar, session cabang direset saat ganti tenant, role cabang tetap terkunci pada cabang aksesnya, dashboard mendukung mode konsolidasi, dan shared Inertia auth membawa konteks cabang aktif.
+- Validasi branch switcher: `php artisan test --filter=MvpFlowTest` berhasil — 8 passed, 79 assertions.
+- Validasi frontend branch switcher: `npm run build` berhasil.
+- Validasi LSP branch switcher: 0 diagnostics pada controller/support/layout/dashboard/test terkait.
+- Mulai gudang selector eksplisit untuk POS, stok masuk, stock adjustment, dan invoice inventory agar transaksi baru tidak lagi diam-diam memakai gudang default.
+- Gudang selector eksplisit selesai: POS, stok masuk, penyesuaian stok, dan invoice pembelian produk stok membawa `warehouse_id`; akses gudang difilter cabang/role; pembelian inventory memvalidasi gudang aktif dan mencatat movement ke gudang terpilih.
+- Validasi gudang selector: `php artisan test --filter=MvpFlowTest` berhasil — 9 passed, 88 assertions.
+- Validasi frontend gudang selector: `npm run build` berhasil.
+- Validasi LSP gudang selector: 0 diagnostics pada controller/action/support/page/test terkait.
+- Mulai multi-branch access per user: UI User & Akses perlu bisa memilih beberapa cabang dan backend menyimpan ke `tenant_user_branches`.
+- Multi-branch access per user selesai: form User & Akses bisa centang beberapa cabang, backend menyimpan sinkronisasi `tenant_user_branches`, role cabang wajib punya minimal satu cabang, dan opsi gudang transaksi mengikuti semua cabang yang diizinkan.
+- Validasi multi-branch access: `php artisan test --filter=MvpFlowTest` berhasil — 10 passed, 105 assertions.
+- Validasi frontend multi-branch access: `npm run build` berhasil.
+- Validasi LSP multi-branch access: 0 diagnostics pada controller/support/page/test terkait.
+- Mulai approval transfer stok: alur transfer perlu berubah dari langsung movement menjadi draft, approve/kirim, lalu receive/terima.
+- Approval transfer stok selesai: transfer dibuat sebagai draft, tombol Setujui/Kirim mencatat movement keluar dan status `approved`, tombol Terima mencatat movement masuk dan status `received`, lengkap dengan requester/approver/receiver.
+- Validasi approval transfer stok: `php artisan test --filter=MvpFlowTest` berhasil — 11 passed, 117 assertions.
+- Validasi frontend approval transfer stok: `npm run build` berhasil.
+- Validasi LSP approval transfer stok: 0 diagnostics pada action/controller/page/route/test terkait.
+- Mulai report perbandingan cabang untuk membandingkan omzet, transaksi, laba kotor, dan nilai stok antar cabang dalam periode.
+- Report perbandingan cabang selesai: halaman `/reports/branch-comparison` menampilkan filter periode, summary total, dan tabel cabang berisi transaksi, omzet, laba kotor, margin, stok, serta nilai stok dengan akses mengikuti cabang user.
+- Validasi report perbandingan cabang: `php artisan test --filter=MvpFlowTest` berhasil — 12 passed, 134 assertions.
+- Validasi frontend report perbandingan cabang: `npm run build` berhasil.
+- Validasi LSP report perbandingan cabang: 0 diagnostics pada controller/route/page/layout/test terkait.
+- Mulai final audit setelah penyelesaian Multi-Cabang Advanced: formatter, full test, build frontend, fresh migration seed, smoke check, dan LSP diagnostics.
+- Final audit Multi-Cabang Advanced berhasil: `./vendor/bin/pint --test`, `php artisan test` — 48 passed, 246 assertions, `npm run build`, `php artisan migrate:fresh --seed --force`, `php artisan app:smoke-check --require-build`, dan LSP diagnostics 0 pada 32 file terkait.
 
 ### 2026-05-23
 

@@ -10,6 +10,7 @@ use App\Models\Inventory\InventoryMovement;
 use App\Models\Inventory\Product;
 use App\Models\Tenant;
 use App\Models\Warehouse;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 
@@ -30,7 +31,9 @@ class CreateInvoiceAction
             throw new InvalidArgumentException('Invoice membutuhkan minimal 1 item.');
         }
 
-        return DB::transaction(function () use ($tenant, $branch, $contact, $type, $date, $dueDate, $items, $notes): Invoice {
+        $warehouses = $this->warehousesForItems($tenant, $branch, $items);
+
+        return DB::transaction(function () use ($tenant, $branch, $contact, $type, $date, $dueDate, $items, $notes, $warehouses): Invoice {
             $number = ($type === 'sales' ? 'INV-S' : 'INV-P').'-'.now()->format('YmdHis');
             $subtotal = collect($items)->sum(fn (array $item): float => round((float) $item['quantity'] * (float) $item['unit_price'], 2));
             $controlAccount = $this->account($tenant, $type === 'sales' ? '1030' : '2010');
@@ -98,10 +101,10 @@ class CreateInvoiceAction
 
                 if ($type === 'purchase' && ! empty($item['product_id'])) {
                     $product = Product::query()->where('tenant_id', $tenant->id)->findOrFail($item['product_id']);
-                    $warehouse = Warehouse::query()->where('tenant_id', $tenant->id)->findOrFail($item['warehouse_id'] ?? null);
+                    $warehouse = $warehouses->get((int) ($item['warehouse_id'] ?? 0));
 
-                    if ($branch instanceof Branch && $warehouse->branch_id !== $branch->id) {
-                        throw new InvalidArgumentException('Gudang pembelian tidak sesuai cabang aktif.');
+                    if (! $warehouse instanceof Warehouse) {
+                        throw new InvalidArgumentException('Pilih gudang untuk item produk pembelian.');
                     }
 
                     InventoryMovement::query()->create([
@@ -126,6 +129,59 @@ class CreateInvoiceAction
 
             return $invoice->load(['items.account', 'journalEntry.lines.account', 'contact']);
         });
+    }
+
+    /**
+     * @param  array<int, array{account_id:int, description:string, quantity:float|int|string, unit_price:float|int|string, product_id?:int|null, warehouse_id?:int|null}>  $items
+     * @return Collection<int, Warehouse>
+     */
+    private function warehousesForItems(Tenant $tenant, ?Branch $branch, array $items): Collection
+    {
+        $productLines = collect($items)
+            ->filter(fn (array $item): bool => ! empty($item['product_id']))
+            ->values();
+        $warehouseIds = $productLines
+            ->map(fn (array $item): ?int => ! empty($item['warehouse_id']) ? (int) $item['warehouse_id'] : null)
+            ->filter()
+            ->unique()
+            ->values();
+
+        $missingWarehouseCount = $productLines
+            ->filter(fn (array $item): bool => empty($item['warehouse_id']))
+            ->count();
+
+        if ($missingWarehouseCount > 0) {
+            throw new InvalidArgumentException('Setiap item produk pembelian wajib memilih gudang.');
+        }
+
+        if ($warehouseIds->isEmpty()) {
+            return collect();
+        }
+
+        /** @var Collection<int, Warehouse> $warehouses */
+        $warehouses = Warehouse::query()
+            ->with('branch:id,tenant_id,is_active')
+            ->where('tenant_id', $tenant->id)
+            ->where('is_active', true)
+            ->whereIn('id', $warehouseIds)
+            ->get()
+            ->keyBy('id');
+
+        if ($warehouses->count() !== $warehouseIds->count()) {
+            throw new InvalidArgumentException('Gudang pembelian tidak aktif atau tidak tersedia.');
+        }
+
+        $warehouses->each(function (Warehouse $warehouse) use ($branch): void {
+            if ($warehouse->branch?->is_active !== true) {
+                throw new InvalidArgumentException('Cabang gudang pembelian tidak aktif.');
+            }
+
+            if ($branch instanceof Branch && $warehouse->branch_id !== $branch->id) {
+                throw new InvalidArgumentException('Gudang pembelian tidak sesuai cabang aktif.');
+            }
+        });
+
+        return $warehouses;
     }
 
     private function account(Tenant $tenant, string $code): Account
