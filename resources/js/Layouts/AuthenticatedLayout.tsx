@@ -52,13 +52,33 @@ const navigationGroups: NavigationGroup[] = [
 		],
 	},
 	{
-		title: "Operasional",
+		title: "Penjualan",
 		items: [
 			{
 				name: "POS",
 				href: "pos.index",
 				roles: ["owner", "admin", "branch_manager", "cashier"],
 			},
+			{
+				name: "Invoice",
+				href: "invoices.index",
+				roles: ["owner", "admin", "accountant", "branch_manager"],
+			},
+			{
+				name: "Shift Kasir",
+				href: "cashier-shifts.index",
+				roles: ["owner", "admin", "branch_manager", "cashier"],
+			},
+			{
+				name: "Kontak",
+				href: "contacts.index",
+				roles: ["owner", "admin", "accountant", "branch_manager"],
+			},
+		],
+	},
+	{
+		title: "Inventory",
+		items: [
 			{
 				name: "Produk",
 				href: "products.index",
@@ -82,38 +102,13 @@ const navigationGroups: NavigationGroup[] = [
 		],
 	},
 	{
-		title: "Penjualan & Pembelian",
-		items: [
-			{
-				name: "Kontak",
-				href: "contacts.index",
-				roles: ["owner", "admin", "accountant", "branch_manager"],
-			},
-			{
-				name: "Invoice",
-				href: "invoices.index",
-				roles: ["owner", "admin", "accountant", "branch_manager"],
-			},
-			{
-				name: "Shift Kasir",
-				href: "cashier-shifts.index",
-				roles: ["owner", "admin", "branch_manager", "cashier"],
-			},
-		],
-	},
-	{
-		title: "Kas & Bank",
+		title: "Akuntansi & Kas",
 		items: [
 			{
 				name: "Transaksi Kas/Bank",
 				href: "cash-transactions.index",
 				roles: ["owner", "admin", "accountant"],
 			},
-		],
-	},
-	{
-		title: "Akuntansi",
-		items: [
 			{
 				name: "Daftar Akun",
 				href: "accounts.index",
@@ -137,11 +132,6 @@ const navigationGroups: NavigationGroup[] = [
 			{
 				name: "Audit Log",
 				href: "audit-logs.index",
-				roles: ["owner", "admin", "accountant"],
-			},
-			{
-				name: "Buku Besar",
-				href: "reports.ledger",
 				roles: ["owner", "admin", "accountant"],
 			},
 		],
@@ -186,6 +176,16 @@ const navigationGroups: NavigationGroup[] = [
 				roles: ["owner", "admin", "accountant"],
 			},
 			{
+				name: "Buku Besar",
+				href: "reports.ledger",
+				roles: ["owner", "admin", "accountant"],
+			},
+		],
+	},
+	{
+		title: "Administrasi",
+		items: [
+			{
 				name: "User & Akses",
 				href: "tenant-users.index",
 				roles: ["owner", "admin"],
@@ -195,6 +195,11 @@ const navigationGroups: NavigationGroup[] = [
 				href: "branches-warehouses.index",
 				roles: ["owner", "admin"],
 			},
+		],
+	},
+	{
+		title: "Pengaturan",
+		items: [
 			{
 				name: "Pengaturan Usaha",
 				href: "tenant-settings.edit",

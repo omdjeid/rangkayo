@@ -154,7 +154,8 @@ Checklist ini menentukan kapan project boleh dianggap siap live production. Item
 
 ### Post-Launch / Phase 2
 
-- [ ] Rancang offline mode POS dengan IndexedDB dan sync.
+- [x] Rapikan navigasi sidebar agar menu laporan, administrasi, dan pengaturan tersusun sesuai konteks.
+- [x] Rancang offline mode POS dengan IndexedDB dan sync.
 - [ ] Buat fixed asset dan penyusutan.
 - [ ] Buat pajak.
 - [ ] Integrasi email reminder sungguhan untuk trial/subscription/invitation.
@@ -197,6 +198,11 @@ Checklist ini menentukan kapan project boleh dianggap siap live production. Item
 - Validasi LSP report perbandingan cabang: 0 diagnostics pada controller/route/page/layout/test terkait.
 - Mulai final audit setelah penyelesaian Multi-Cabang Advanced: formatter, full test, build frontend, fresh migration seed, smoke check, dan LSP diagnostics.
 - Final audit Multi-Cabang Advanced berhasil: `./vendor/bin/pint --test`, `php artisan test` — 48 passed, 246 assertions, `npm run build`, `php artisan migrate:fresh --seed --force`, `php artisan app:smoke-check --require-build`, dan LSP diagnostics 0 pada 32 file terkait.
+- Mulai Phase 2 kecil: rapikan grouping sidebar agar User & Akses, Cabang & Gudang, Pengaturan Usaha, dan Billing tidak berada di grup Laporan.
+- Sidebar dirapikan: menu dipisah menjadi Utama, Penjualan, Inventory, Akuntansi & Kas, Laporan, Administrasi, dan Pengaturan; User & Akses/Cabang & Gudang keluar dari Laporan.
+- Validasi sidebar: `npm run build` berhasil dan LSP diagnostics 0 pada layout sidebar.
+- Mulai desain offline mode POS: audit kebutuhan IndexedDB, antrean checkout lokal, snapshot produk/gudang, dan strategi sync aman.
+- Desain offline mode POS selesai di `docs/POS_OFFLINE_MODE_PLAN.md`: scope MVP, batasan, schema IndexedDB, sync flow, endpoint server yang disarankan, UI states, risiko, dan rencana implementasi bertahap.
 
 ### 2026-05-23
 
