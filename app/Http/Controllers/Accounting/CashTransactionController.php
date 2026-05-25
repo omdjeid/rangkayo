@@ -28,7 +28,8 @@ class CashTransactionController extends Controller
                 ->get(['id', 'code', 'name']),
             'counterAccounts' => Account::query()
                 ->where('tenant_id', $tenant->id)
-                ->whereIn('type', ['asset', 'liability', 'equity', 'revenue', 'expense', 'contra_revenue'])
+                ->where('is_cash', false)
+                ->whereIn('type', ['asset', 'liability', 'equity', 'revenue', 'expense'])
                 ->orderBy('code')
                 ->get(['id', 'code', 'name', 'type', 'is_cash']),
             'transactions' => CashTransaction::query()
@@ -58,7 +59,7 @@ class CashTransactionController extends Controller
         $branch = $currentTenant->branch($tenant);
 
         $validated = $request->validate([
-            'type' => ['required', Rule::in(['income', 'expense', 'transfer'])],
+            'type' => ['required', Rule::in(['income', 'owner_capital', 'expense', 'payable_payment', 'asset_purchase', 'transfer'])],
             'cash_account_id' => ['required', Rule::exists('accounts', 'id')->where('tenant_id', $tenant->id)],
             'counter_account_id' => ['required', Rule::exists('accounts', 'id')->where('tenant_id', $tenant->id), 'different:cash_account_id'],
             'transaction_date' => ['required', 'date'],
@@ -68,6 +69,7 @@ class CashTransactionController extends Controller
 
         $cashAccount = Account::query()->where('tenant_id', $tenant->id)->findOrFail($validated['cash_account_id']);
         $counterAccount = Account::query()->where('tenant_id', $tenant->id)->findOrFail($validated['counter_account_id']);
+        $this->ensureCounterAccountAllowed($validated['type'], $counterAccount);
 
         if ($validated['type'] === 'transfer') {
             $recordCashTransfer->handle(
@@ -88,12 +90,41 @@ class CashTransactionController extends Controller
             branch: $branch,
             cashAccount: $cashAccount,
             counterAccount: $counterAccount,
-            type: $validated['type'],
+            type: $this->cashFlowType($validated['type']),
             amount: (float) $validated['amount'],
             description: $validated['description'],
             date: $validated['transaction_date'],
+            transactionType: $validated['type'],
         );
 
         return back()->with('success', 'Transaksi kas/bank berhasil dicatat dan pembukuan otomatis dibuat.');
+    }
+
+    private function ensureCounterAccountAllowed(string $type, Account $counterAccount): void
+    {
+        if ($type === 'transfer') {
+            abort_unless($counterAccount->is_cash, 422, 'Transfer hanya boleh memakai akun kas/bank tujuan.');
+
+            return;
+        }
+
+        abort_unless(! $counterAccount->is_cash && $counterAccount->type === $this->counterAccountType($type), 422, 'Akun lawan tidak sesuai jenis transaksi.');
+    }
+
+    private function counterAccountType(string $type): string
+    {
+        return match ($type) {
+            'income' => 'revenue',
+            'owner_capital' => 'equity',
+            'expense' => 'expense',
+            'payable_payment' => 'liability',
+            'asset_purchase' => 'asset',
+            default => '',
+        };
+    }
+
+    private function cashFlowType(string $type): string
+    {
+        return in_array($type, ['income', 'owner_capital'], true) ? 'income' : 'expense';
     }
 }

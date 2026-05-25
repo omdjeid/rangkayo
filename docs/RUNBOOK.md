@@ -13,7 +13,22 @@ Runbook ini berisi langkah operasional minimum untuk deploy, rollback, backup, d
    npm run build
    ```
 
-3. Pastikan `.env` production sudah benar dan aman.
+3. Pastikan `.env` production sudah benar dan aman. Untuk Cloudflare Tunnel RangKayo, domain minimal:
+
+   ```bash
+   APP_URL=https://rangkayo.my.id
+   SESSION_DOMAIN=.rangkayo.my.id
+   SESSION_SECURE_COOKIE=true
+   SAAS_ROOT_DOMAIN=rangkayo.my.id
+   SAAS_HOME_DOMAIN=rangkayo.my.id
+   SAAS_ADMIN_DOMAIN=admin.rangkayo.my.id
+   SAAS_APP_DOMAIN=app.rangkayo.my.id
+   SAAS_POS_DOMAIN=pos.rangkayo.my.id
+   SAAS_ENFORCE_DOMAINS=true
+   ```
+
+   Cloudflare Tunnel hostnames diarahkan ke service Laravel yang sama; routing host dibedakan oleh aplikasi.
+
 4. Jalankan migrasi:
 
    ```bash
@@ -37,7 +52,7 @@ Runbook ini berisi langkah operasional minimum untuk deploy, rollback, backup, d
    php artisan app:smoke-check --url=https://domain-production.tld --require-build
    ```
 
-8. Cek browser untuk `/`, `/login`, `/health`, login owner, dashboard, POS, laporan penjualan, laporan stok, laba rugi, dan neraca.
+8. Cek browser untuk `https://rangkayo.my.id`, `https://admin.rangkayo.my.id`, `https://app.rangkayo.my.id`, dan `https://pos.rangkayo.my.id`; login owner/platform admin/kasir, dashboard, POS, laporan penjualan, laporan stok, laba rugi, dan neraca.
 
 ## Queue Worker
 
@@ -63,8 +78,18 @@ Tambahkan cron/scheduler platform agar berjalan tiap menit:
 
 Command internal yang relevan:
 
-- `subscriptions:reminders` — mencatat reminder trial/subscription yang perlu dikirim.
+- `subscriptions:reminders --days=3` — mengirim email reminder trial/subscription ke owner/admin tenant; dijadwalkan harian pukul 08:00 dan memakai audit log agar tidak terkirim ganda untuk target tanggal yang sama.
+- `production:monitor --alert` — mengumpulkan metric database, failed/pending queue, error log, dan uptime URL; dijadwalkan tiap 5 menit dan mengirim alert email bila critical.
 - `app:smoke-check` — readiness check internal/publik.
+
+Monitoring env yang perlu diisi di production:
+
+```bash
+MONITORING_ALERT_EMAIL=ops@example.com
+MONITORING_QUEUE_FAILED_THRESHOLD=1
+MONITORING_LOG_ERROR_THRESHOLD=1
+MONITORING_UPTIME_URLS=https://domain.com/health,https://domain.com/login
+```
 
 ## Backup Database
 

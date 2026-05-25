@@ -3,6 +3,7 @@
 namespace App\Actions\Tenancy;
 
 use App\Models\Accounting\Account;
+use App\Models\Accounting\TaxRate;
 use App\Models\Branch;
 use App\Models\Inventory\ProductCategory;
 use App\Models\Inventory\Unit;
@@ -88,6 +89,17 @@ class CreateTenantOnboardingAction
                     'is_system' => $account['is_system'] ?? false,
                 ]);
             }
+
+            TaxRate::query()->create([
+                'tenant_id' => $tenant->id,
+                'account_id' => Account::query()->where('tenant_id', $tenant->id)->where('code', '2020')->value('id'),
+                'input_account_id' => Account::query()->where('tenant_id', $tenant->id)->where('code', '1070')->value('id'),
+                'name' => 'PPN 11%',
+                'code' => 'PPN11',
+                'rate' => 11,
+                'is_default' => true,
+                'is_active' => true,
+            ]);
 
             Unit::query()->create([
                 'tenant_id' => $tenant->id,

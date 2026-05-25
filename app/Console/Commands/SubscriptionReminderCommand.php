@@ -2,37 +2,20 @@
 
 namespace App\Console\Commands;
 
-use App\Models\PlatformAuditLog;
-use App\Models\TenantSubscription;
+use App\Actions\Tenancy\SendSubscriptionRemindersAction;
 use Illuminate\Console\Command;
 
 class SubscriptionReminderCommand extends Command
 {
-    protected $signature = 'subscriptions:reminders';
+    protected $signature = 'subscriptions:reminders {--days=3 : Kirim reminder untuk subscription yang jatuh tempo dalam N hari}';
 
-    protected $description = 'Mencatat reminder trial/subscription yang perlu dikirim email.';
+    protected $description = 'Mengirim email reminder trial/subscription ke owner/admin tenant.';
 
-    public function handle(): int
+    public function handle(SendSubscriptionRemindersAction $sendReminders): int
     {
-        $subscriptions = TenantSubscription::query()
-            ->with('tenant')
-            ->whereIn('status', ['trial', 'active'])
-            ->where(function ($query): void {
-                $query->whereDate('trial_ends_at', '<=', now()->addDays(3))
-                    ->orWhereDate('current_period_ends_at', '<=', now()->addDays(3));
-            })
-            ->get();
+        $result = $sendReminders->handle(daysAhead: (int) $this->option('days'));
 
-        foreach ($subscriptions as $subscription) {
-            PlatformAuditLog::query()->create([
-                'tenant_id' => $subscription->tenant_id,
-                'action' => 'subscription.reminder.pending',
-                'description' => "Reminder subscription {$subscription->tenant?->name} perlu dikirim.",
-                'metadata' => $subscription->toArray(),
-            ]);
-        }
-
-        $this->info("{$subscriptions->count()} reminder dicatat.");
+        $this->info("{$result['sent']} email reminder dikirim, {$result['skipped']} reminder dilewati.");
 
         return self::SUCCESS;
     }

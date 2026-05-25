@@ -45,6 +45,7 @@ class SmokeCheckCommand extends Command
         });
         $this->check('Required routes registered', fn (): bool => $this->requiredRoutesAreRegistered());
         $this->check('Tenant data available', fn (): bool => Tenant::query()->exists());
+        $this->check('Production monitor command available', fn (): bool => class_exists(ProductionMonitorCommand::class));
 
         if ($this->option('require-build')) {
             $this->check('Production asset manifest available', fn (): bool => file_exists(public_path('build/manifest.json')));

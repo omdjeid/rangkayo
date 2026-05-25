@@ -17,10 +17,12 @@ class InvoiceItem extends Model
         'account_id',
         'product_id',
         'warehouse_id',
+        'tax_rate_id',
         'description',
         'quantity',
         'unit_price',
         'line_total',
+        'tax_total',
     ];
 
     protected function casts(): array
@@ -29,6 +31,7 @@ class InvoiceItem extends Model
             'quantity' => 'decimal:4',
             'unit_price' => 'decimal:2',
             'line_total' => 'decimal:2',
+            'tax_total' => 'decimal:2',
         ];
     }
 
@@ -50,5 +53,10 @@ class InvoiceItem extends Model
     public function warehouse(): BelongsTo
     {
         return $this->belongsTo(Warehouse::class);
+    }
+
+    public function taxRate(): BelongsTo
+    {
+        return $this->belongsTo(TaxRate::class);
     }
 }

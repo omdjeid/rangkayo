@@ -32,7 +32,7 @@ class RecordCashTransferAction
         }
 
         return DB::transaction(function () use ($tenant, $branch, $fromAccount, $toAccount, $amount, $description, $date): CashTransaction {
-            $number = 'TRC-'.now()->format('YmdHis');
+            $number = 'TRC-'.now()->format('YmdHis').'-'.str()->upper(str()->random(4));
             $transactionDate = $date ?? today()->toDateString();
 
             $journalEntry = $this->postJournalEntry->handle([

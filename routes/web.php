@@ -4,11 +4,14 @@ use App\Http\Controllers\Accounting\AccountController;
 use App\Http\Controllers\Accounting\AccountingPeriodController;
 use App\Http\Controllers\Accounting\AuditLogController;
 use App\Http\Controllers\Accounting\CashTransactionController;
+use App\Http\Controllers\Accounting\FixedAssetController;
 use App\Http\Controllers\Accounting\InvoiceController;
 use App\Http\Controllers\Accounting\InvoicePaymentController;
+use App\Http\Controllers\Accounting\InvoicePrintController;
 use App\Http\Controllers\Accounting\JournalEntryController;
 use App\Http\Controllers\Accounting\ManualJournalController;
 use App\Http\Controllers\Accounting\ReportController;
+use App\Http\Controllers\Accounting\TaxRateController;
 use App\Http\Controllers\BillingController;
 use App\Http\Controllers\BranchComparisonReportController;
 use App\Http\Controllers\BranchSwitchController;
@@ -24,6 +27,7 @@ use App\Http\Controllers\Inventory\StockReportController;
 use App\Http\Controllers\Inventory\StockTransferController;
 use App\Http\Controllers\Platform\SuperAdminController;
 use App\Http\Controllers\PosController;
+use App\Http\Controllers\PrintSettingsController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ReceiptController;
 use App\Http\Controllers\SalesReportController;
@@ -42,7 +46,7 @@ Route::get('/', function () {
         'laravelVersion' => Application::VERSION,
         'phpVersion' => PHP_VERSION,
     ]);
-});
+})->name('home');
 
 Route::get('/health', HealthController::class)->name('health');
 
@@ -77,6 +81,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/accounts', [AccountController::class, 'store'])->name('accounts.store');
         Route::get('/cash-transactions', [CashTransactionController::class, 'index'])->name('cash-transactions.index');
         Route::post('/cash-transactions', [CashTransactionController::class, 'store'])->name('cash-transactions.store');
+        Route::get('/fixed-assets', [FixedAssetController::class, 'index'])->name('fixed-assets.index');
+        Route::post('/fixed-assets', [FixedAssetController::class, 'store'])->name('fixed-assets.store');
+        Route::post('/fixed-assets/{fixedAsset}/depreciate', [FixedAssetController::class, 'depreciate'])->name('fixed-assets.depreciate');
+        Route::get('/taxes', [TaxRateController::class, 'index'])->name('taxes.index');
+        Route::post('/taxes', [TaxRateController::class, 'store'])->name('taxes.store');
+        Route::patch('/taxes/{taxRate}', [TaxRateController::class, 'update'])->name('taxes.update');
         Route::get('/manual-journal', [ManualJournalController::class, 'create'])->name('manual-journal.create');
         Route::post('/manual-journal', [ManualJournalController::class, 'store'])->name('manual-journal.store');
         Route::get('/journal-entries', [JournalEntryController::class, 'index'])->name('journal-entries.index');
@@ -95,6 +105,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/tenant-invitations', [TenantInvitationController::class, 'store'])->name('tenant-invitations.store');
         Route::get('/tenant-settings', [TenantSettingsController::class, 'edit'])->name('tenant-settings.edit');
         Route::patch('/tenant-settings', [TenantSettingsController::class, 'update'])->name('tenant-settings.update');
+        Route::get('/print-settings', [PrintSettingsController::class, 'edit'])->name('print-settings.edit');
+        Route::patch('/print-settings', [PrintSettingsController::class, 'update'])->name('print-settings.update');
         Route::get('/branches-warehouses', [BranchWarehouseController::class, 'index'])->name('branches-warehouses.index');
         Route::post('/branches', [BranchWarehouseController::class, 'storeBranch'])->name('branches.store');
         Route::patch('/branches/{branch}', [BranchWarehouseController::class, 'updateBranch'])->name('branches.update');
@@ -110,6 +122,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/contacts', [ContactController::class, 'store'])->name('contacts.store');
         Route::get('/invoices', [InvoiceController::class, 'index'])->name('invoices.index');
         Route::post('/invoices', [InvoiceController::class, 'store'])->name('invoices.store');
+        Route::get('/invoices/{invoice}/print', InvoicePrintController::class)->name('invoices.print');
         Route::post('/invoice-payments', [InvoicePaymentController::class, 'store'])->name('invoice-payments.store');
     });
 

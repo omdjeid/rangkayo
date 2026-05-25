@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Accounting\CashTransaction;
+use App\Models\Accounting\FixedAsset;
 use App\Models\Accounting\JournalEntry;
 use App\Models\Inventory\InventoryMovement;
 use App\Models\Inventory\StockTransfer;
@@ -50,6 +51,11 @@ class Branch extends Model
     public function cashTransactions(): HasMany
     {
         return $this->hasMany(CashTransaction::class);
+    }
+
+    public function fixedAssets(): HasMany
+    {
+        return $this->hasMany(FixedAsset::class);
     }
 
     public function inventoryMovements(): HasMany

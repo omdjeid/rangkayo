@@ -7,7 +7,8 @@ Checklist ini wajib dicek sebelum Akutansia dipublikasikan sebagai production re
 - [ ] `APP_ENV=production`
 - [ ] `APP_DEBUG=false`
 - [ ] `APP_KEY` sudah generated dan disimpan aman.
-- [ ] `APP_URL` memakai domain final `https://...`.
+- [ ] `APP_URL` memakai domain final `https://rangkayo.my.id`.
+- [ ] Domain SaaS dikonfigurasi: `SAAS_HOME_DOMAIN=rangkayo.my.id`, `SAAS_ADMIN_DOMAIN=admin.rangkayo.my.id`, `SAAS_APP_DOMAIN=app.rangkayo.my.id`, `SAAS_POS_DOMAIN=pos.rangkayo.my.id`, dan `SAAS_ENFORCE_DOMAINS=true` setelah Cloudflare Tunnel siap.
 - [ ] Timezone aplikasi dan tenant default sesuai kebutuhan bisnis.
 - [ ] `.env` tidak masuk git dan hanya bisa dibaca user aplikasi.
 
@@ -44,7 +45,8 @@ Checklist ini wajib dicek sebelum Akutansia dipublikasikan sebagai production re
 ## 6. Security Hardening
 
 - [ ] HTTPS aktif dan redirect HTTP ke HTTPS.
-- [ ] Cookie/session secure sesuai domain production.
+- [ ] Cookie/session secure sesuai domain production: `SESSION_DOMAIN=.rangkayo.my.id`, `SESSION_SECURE_COOKIE=true`, `SESSION_SAME_SITE=lax`.
+- [ ] Cloudflare Tunnel hostnames mengarah ke service Laravel yang sama: `rangkayo.my.id`, `admin.rangkayo.my.id`, `app.rangkayo.my.id`, dan `pos.rangkayo.my.id`.
 - [ ] Platform admin hanya untuk user terpercaya.
 - [ ] `APP_DEBUG=false` terverifikasi dari browser.
 - [ ] Dependency audit bersih untuk high/critical vulnerabilities.

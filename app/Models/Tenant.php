@@ -5,9 +5,12 @@ namespace App\Models;
 use App\Models\Accounting\Account;
 use App\Models\Accounting\AccountingPeriod;
 use App\Models\Accounting\CashTransaction;
+use App\Models\Accounting\FixedAsset;
+use App\Models\Accounting\FixedAssetDepreciation;
 use App\Models\Accounting\Invoice;
 use App\Models\Accounting\InvoicePayment;
 use App\Models\Accounting\JournalEntry;
+use App\Models\Accounting\TaxRate;
 use App\Models\Inventory\InventoryMovement;
 use App\Models\Inventory\Product;
 use App\Models\Inventory\ProductCategory;
@@ -105,6 +108,16 @@ class Tenant extends Model
         return $this->hasMany(CashTransaction::class);
     }
 
+    public function fixedAssets(): HasMany
+    {
+        return $this->hasMany(FixedAsset::class);
+    }
+
+    public function fixedAssetDepreciations(): HasMany
+    {
+        return $this->hasMany(FixedAssetDepreciation::class);
+    }
+
     public function contacts(): HasMany
     {
         return $this->hasMany(Contact::class);
@@ -118,6 +131,11 @@ class Tenant extends Model
     public function invoicePayments(): HasMany
     {
         return $this->hasMany(InvoicePayment::class);
+    }
+
+    public function taxRates(): HasMany
+    {
+        return $this->hasMany(TaxRate::class);
     }
 
     public function productCategories(): HasMany

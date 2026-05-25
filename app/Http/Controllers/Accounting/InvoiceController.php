@@ -6,6 +6,7 @@ use App\Actions\Accounting\CreateInvoiceAction;
 use App\Http\Controllers\Controller;
 use App\Models\Accounting\Account;
 use App\Models\Accounting\Invoice;
+use App\Models\Accounting\TaxRate;
 use App\Models\Contact;
 use App\Models\Inventory\Product;
 use App\Support\BranchWarehouseOptions;
@@ -37,6 +38,8 @@ class InvoiceController extends Controller
                     'invoice_date' => $invoice->invoice_date?->toDateString(),
                     'due_date' => $invoice->due_date?->toDateString(),
                     'contact' => $invoice->contact?->name,
+                    'subtotal' => (float) $invoice->subtotal,
+                    'tax_total' => (float) $invoice->tax_total,
                     'grand_total' => (float) $invoice->grand_total,
                     'paid_total' => (float) $invoice->paid_total,
                     'balance_due' => (float) $invoice->balance_due,
@@ -46,6 +49,7 @@ class InvoiceController extends Controller
             'accounts' => Account::query()->where('tenant_id', $tenant->id)->where('is_active', true)->orderBy('code')->get(['id', 'code', 'name', 'type']),
             'products' => Product::query()->where('tenant_id', $tenant->id)->where('is_active', true)->orderBy('name')->get(['id', 'sku', 'name', 'cost_price']),
             'warehouses' => BranchWarehouseOptions::warehouses($tenant, $context),
+            'taxRates' => TaxRate::query()->where('tenant_id', $tenant->id)->where('is_active', true)->orderBy('name')->get(['id', 'name', 'code', 'rate', 'is_default']),
         ]);
     }
 
@@ -61,13 +65,16 @@ class InvoiceController extends Controller
             'due_date' => ['nullable', 'date'],
             'notes' => ['nullable', 'string', 'max:500'],
             'items' => ['required', 'array', 'min:1'],
-            'items.*.account_id' => ['required', Rule::exists('accounts', 'id')->where('tenant_id', $tenant->id)],
+            'items.*.account_id' => ['required', Rule::exists('accounts', 'id')->where('tenant_id', $tenant->id)->where('is_active', true)],
             'items.*.product_id' => ['nullable', Rule::exists('products', 'id')->where('tenant_id', $tenant->id)],
             'items.*.warehouse_id' => ['nullable', 'integer'],
+            'items.*.tax_rate_id' => ['nullable', Rule::exists('tax_rates', 'id')->where('tenant_id', $tenant->id)->where('is_active', true)],
             'items.*.description' => ['required', 'string', 'max:255'],
             'items.*.quantity' => ['required', 'numeric', 'min:0.0001'],
             'items.*.unit_price' => ['required', 'numeric', 'min:0'],
         ]);
+
+        $this->ensureItemAccountsAllowed($tenant->id, $validated['type'], $validated['items']);
 
         $contact = isset($validated['contact_id']) ? Contact::query()->where('tenant_id', $tenant->id)->find($validated['contact_id']) : null;
         $firstWarehouseId = collect($validated['items'])
@@ -93,5 +100,26 @@ class InvoiceController extends Controller
         );
 
         return back()->with('success', 'Invoice berhasil disimpan. Pembukuan sudah diperbarui.');
+    }
+
+    /**
+     * @param  array<int, array{account_id:int|string}>  $items
+     */
+    private function ensureItemAccountsAllowed(int $tenantId, string $type, array $items): void
+    {
+        $accountIds = collect($items)->pluck('account_id')->map(fn ($id): int => (int) $id)->unique()->values();
+        $allowedTypes = $type === 'sales' ? ['revenue'] : ['expense', 'asset'];
+        $accounts = Account::query()
+            ->where('tenant_id', $tenantId)
+            ->whereIn('id', $accountIds)
+            ->get(['id', 'type', 'is_cash']);
+
+        $validCount = $accounts
+            ->filter(fn (Account $account): bool => ! $account->is_cash && in_array($account->type, $allowedTypes, true))
+            ->count();
+
+        abort_unless($validCount === $accountIds->count(), 422, $type === 'sales'
+            ? 'Invoice penjualan hanya boleh memakai akun pendapatan non-kas.'
+            : 'Invoice pembelian hanya boleh memakai akun beban/aset non-kas.');
     }
 }

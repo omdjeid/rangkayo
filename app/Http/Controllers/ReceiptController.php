@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Sales\Sale;
 use App\Support\CurrentTenant;
+use App\Support\PrintPreferences;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -19,6 +20,7 @@ class ReceiptController extends Controller
 
         return Inertia::render('POS/Receipt', [
             'tenant' => $tenant->only(['name']),
+            'printPreference' => PrintPreferences::forTenant($tenant)['receipt'],
             'sale' => [
                 'id' => $sale->id,
                 'sale_number' => $sale->sale_number,

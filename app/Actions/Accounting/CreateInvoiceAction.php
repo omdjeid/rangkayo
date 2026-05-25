@@ -4,6 +4,7 @@ namespace App\Actions\Accounting;
 
 use App\Models\Accounting\Account;
 use App\Models\Accounting\Invoice;
+use App\Models\Accounting\TaxRate;
 use App\Models\Branch;
 use App\Models\Contact;
 use App\Models\Inventory\InventoryMovement;
@@ -19,7 +20,7 @@ class CreateInvoiceAction
     public function __construct(private readonly PostJournalEntryAction $postJournalEntry) {}
 
     /**
-     * @param  array<int, array{account_id:int, description:string, quantity:float|int|string, unit_price:float|int|string, product_id?:int|null, warehouse_id?:int|null}>  $items
+     * @param  array<int, array{account_id:int, description:string, quantity:float|int|string, unit_price:float|int|string, product_id?:int|null, warehouse_id?:int|null, tax_rate_id?:int|null}>  $items
      */
     public function handle(Tenant $tenant, ?Branch $branch, ?Contact $contact, string $type, string $date, ?string $dueDate, array $items, ?string $notes = null): Invoice
     {
@@ -32,31 +33,43 @@ class CreateInvoiceAction
         }
 
         $warehouses = $this->warehousesForItems($tenant, $branch, $items);
+        $taxRates = $this->taxRatesForItems($tenant, $items);
 
-        return DB::transaction(function () use ($tenant, $branch, $contact, $type, $date, $dueDate, $items, $notes, $warehouses): Invoice {
-            $number = ($type === 'sales' ? 'INV-S' : 'INV-P').'-'.now()->format('YmdHis');
-            $subtotal = collect($items)->sum(fn (array $item): float => round((float) $item['quantity'] * (float) $item['unit_price'], 2));
+        return DB::transaction(function () use ($tenant, $branch, $contact, $type, $date, $dueDate, $items, $notes, $warehouses, $taxRates): Invoice {
+            $number = ($type === 'sales' ? 'INV-S' : 'INV-P').'-'.now()->format('YmdHis').'-'.str()->upper(str()->random(4));
+            $preparedItems = collect($items)->map(function (array $item) use ($taxRates): array {
+                $lineTotal = round((float) $item['quantity'] * (float) $item['unit_price'], 2);
+                $taxRate = ! empty($item['tax_rate_id']) ? $taxRates->get((int) $item['tax_rate_id']) : null;
+                $taxTotal = $taxRate instanceof TaxRate ? round($lineTotal * ((float) $taxRate->rate / 100), 2) : 0.0;
+
+                return [...$item, 'line_total' => $lineTotal, 'tax_total' => $taxTotal];
+            });
+            $subtotal = (float) $preparedItems->sum('line_total');
+            $taxTotal = (float) $preparedItems->sum('tax_total');
+            $grandTotal = $subtotal + $taxTotal;
             $controlAccount = $this->account($tenant, $type === 'sales' ? '1030' : '2010');
 
             $journalLines = [];
 
             if ($type === 'sales') {
-                $journalLines[] = ['account_id' => $controlAccount->id, 'debit' => $subtotal, 'credit' => 0, 'description' => 'Piutang invoice'];
-                foreach ($items as $item) {
-                    $journalLines[] = ['account_id' => $item['account_id'], 'debit' => 0, 'credit' => round((float) $item['quantity'] * (float) $item['unit_price'], 2), 'description' => $item['description']];
+                $journalLines[] = ['account_id' => $controlAccount->id, 'debit' => $grandTotal, 'credit' => 0, 'description' => 'Piutang invoice'];
+                foreach ($preparedItems as $item) {
+                    $journalLines[] = ['account_id' => $item['account_id'], 'debit' => 0, 'credit' => $item['line_total'], 'description' => $item['description']];
                 }
+                $this->appendTaxLines($tenant, $journalLines, $preparedItems, debit: false, description: 'Pajak keluaran');
             } else {
                 $inventoryAccount = $this->account($tenant, '1040');
 
-                foreach ($items as $item) {
+                foreach ($preparedItems as $item) {
                     $journalLines[] = [
                         'account_id' => ! empty($item['product_id']) ? $inventoryAccount->id : $item['account_id'],
-                        'debit' => round((float) $item['quantity'] * (float) $item['unit_price'], 2),
+                        'debit' => $item['line_total'],
                         'credit' => 0,
                         'description' => $item['description'],
                     ];
                 }
-                $journalLines[] = ['account_id' => $controlAccount->id, 'debit' => 0, 'credit' => $subtotal, 'description' => 'Hutang invoice'];
+                $this->appendTaxLines($tenant, $journalLines, $preparedItems, debit: true, description: 'Pajak masukan');
+                $journalLines[] = ['account_id' => $controlAccount->id, 'debit' => 0, 'credit' => $grandTotal, 'description' => 'Hutang invoice'];
             }
 
             $journalEntry = $this->postJournalEntry->handle([
@@ -79,24 +92,27 @@ class CreateInvoiceAction
                 'invoice_date' => $date,
                 'due_date' => $dueDate,
                 'subtotal' => $subtotal,
-                'grand_total' => $subtotal,
+                'tax_total' => $taxTotal,
+                'grand_total' => $grandTotal,
                 'paid_total' => 0,
-                'balance_due' => $subtotal,
+                'balance_due' => $grandTotal,
                 'status' => 'open',
                 'notes' => $notes,
             ]);
 
-            foreach ($items as $item) {
+            foreach ($preparedItems as $item) {
                 $quantity = (float) $item['quantity'];
                 $unitPrice = (float) $item['unit_price'];
                 $invoiceItem = $invoice->items()->create([
                     'account_id' => $item['account_id'],
                     'product_id' => $item['product_id'] ?? null,
                     'warehouse_id' => $item['warehouse_id'] ?? null,
+                    'tax_rate_id' => $item['tax_rate_id'] ?? null,
                     'description' => $item['description'],
                     'quantity' => $quantity,
                     'unit_price' => $unitPrice,
-                    'line_total' => round($quantity * $unitPrice, 2),
+                    'line_total' => $item['line_total'],
+                    'tax_total' => $item['tax_total'],
                 ]);
 
                 if ($type === 'purchase' && ! empty($item['product_id'])) {
@@ -127,12 +143,12 @@ class CreateInvoiceAction
                 }
             }
 
-            return $invoice->load(['items.account', 'journalEntry.lines.account', 'contact']);
+            return $invoice->load(['items.account', 'items.taxRate', 'journalEntry.lines.account', 'contact']);
         });
     }
 
     /**
-     * @param  array<int, array{account_id:int, description:string, quantity:float|int|string, unit_price:float|int|string, product_id?:int|null, warehouse_id?:int|null}>  $items
+     * @param  array<int, array{account_id:int, description:string, quantity:float|int|string, unit_price:float|int|string, product_id?:int|null, warehouse_id?:int|null, tax_rate_id?:int|null}>  $items
      * @return Collection<int, Warehouse>
      */
     private function warehousesForItems(Tenant $tenant, ?Branch $branch, array $items): Collection
@@ -182,6 +198,64 @@ class CreateInvoiceAction
         });
 
         return $warehouses;
+    }
+
+    /**
+     * @param  array<int, array{tax_rate_id?:int|null}>  $items
+     * @return Collection<int, TaxRate>
+     */
+    private function taxRatesForItems(Tenant $tenant, array $items): Collection
+    {
+        $taxRateIds = collect($items)
+            ->map(fn (array $item): ?int => ! empty($item['tax_rate_id']) ? (int) $item['tax_rate_id'] : null)
+            ->filter()
+            ->unique()
+            ->values();
+
+        if ($taxRateIds->isEmpty()) {
+            return collect();
+        }
+
+        /** @var Collection<int, TaxRate> $taxRates */
+        $taxRates = TaxRate::query()
+            ->where('tenant_id', $tenant->id)
+            ->where('is_active', true)
+            ->whereIn('id', $taxRateIds)
+            ->get()
+            ->keyBy('id');
+
+        if ($taxRates->count() !== $taxRateIds->count()) {
+            throw new InvalidArgumentException('Tarif pajak tidak aktif atau tidak tersedia.');
+        }
+
+        return $taxRates;
+    }
+
+    /**
+     * @param  array<int, array{account_id:int, debit:float|int, credit:float|int, description:string}>  $journalLines
+     * @param  Collection<int, array{tax_rate_id?:int|null, tax_total:float|int|string}>  $preparedItems
+     */
+    private function appendTaxLines(Tenant $tenant, array &$journalLines, Collection $preparedItems, bool $debit, string $description): void
+    {
+        $taxGroups = $preparedItems
+            ->filter(fn (array $item): bool => ! empty($item['tax_rate_id']) && (float) $item['tax_total'] > 0)
+            ->groupBy(fn (array $item): int => (int) $item['tax_rate_id'])
+            ->map(fn (Collection $items): float => round((float) $items->sum('tax_total'), 2));
+
+        foreach ($taxGroups as $taxRateId => $amount) {
+            $taxRate = TaxRate::query()->where('tenant_id', $tenant->id)->find((int) $taxRateId);
+            $accountId = $debit ? $taxRate?->input_account_id : $taxRate?->account_id;
+            $fallbackCode = $debit ? '1070' : '2020';
+            $taxAccount = $accountId ? Account::query()->where('tenant_id', $tenant->id)->find($accountId) : null;
+            $taxAccount ??= $this->account($tenant, $fallbackCode);
+
+            $journalLines[] = [
+                'account_id' => $taxAccount->id,
+                'debit' => $debit ? $amount : 0,
+                'credit' => $debit ? 0 : $amount,
+                'description' => $description.' '.$taxRate?->code,
+            ];
+        }
     }
 
     private function account(Tenant $tenant, string $code): Account

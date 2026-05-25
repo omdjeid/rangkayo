@@ -13,7 +13,7 @@ class RecordCashTransactionAction
 {
     public function __construct(private readonly PostJournalEntryAction $postJournalEntry) {}
 
-    public function handle(Tenant $tenant, ?Branch $branch, Account $cashAccount, Account $counterAccount, string $type, float $amount, string $description, ?string $date = null): CashTransaction
+    public function handle(Tenant $tenant, ?Branch $branch, Account $cashAccount, Account $counterAccount, string $type, float $amount, string $description, ?string $date = null, ?string $transactionType = null): CashTransaction
     {
         if (! in_array($type, ['income', 'expense'], true)) {
             throw new InvalidArgumentException('Tipe transaksi kas harus income atau expense.');
@@ -31,9 +31,9 @@ class RecordCashTransactionAction
             throw new InvalidArgumentException('Akun pembayaran harus akun kas/bank.');
         }
 
-        return DB::transaction(function () use ($tenant, $branch, $cashAccount, $counterAccount, $type, $amount, $description, $date): CashTransaction {
+        return DB::transaction(function () use ($tenant, $branch, $cashAccount, $counterAccount, $type, $amount, $description, $date, $transactionType): CashTransaction {
             $prefix = $type === 'income' ? 'RCV' : 'PAY';
-            $number = $prefix.'-'.now()->format('YmdHis');
+            $number = $prefix.'-'.now()->format('YmdHis').'-'.str()->upper(str()->random(4));
             $transactionDate = $date ?? today()->toDateString();
 
             $lines = $type === 'income'
@@ -63,7 +63,7 @@ class RecordCashTransactionAction
                 'counter_account_id' => $counterAccount->id,
                 'journal_entry_id' => $journalEntry->id,
                 'transaction_number' => $number,
-                'type' => $type,
+                'type' => $transactionType ?? $type,
                 'transaction_date' => $transactionDate,
                 'amount' => $amount,
                 'description' => $description,

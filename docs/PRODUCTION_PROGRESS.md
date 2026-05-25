@@ -85,8 +85,8 @@ Dokumen ini adalah single source of truth untuk progres produksi project.
 - [x] Buat sales invoice dan purchase invoice.
 - [x] Buat pembayaran piutang dan hutang.
 - [x] Buat transfer kas/bank.
-- [ ] Buat fixed asset dan penyusutan.
-- [ ] Buat pajak.
+- [x] Buat fixed asset dan penyusutan.
+- [x] Buat pajak.
 - [x] Buat period locking.
 - [x] Buat audit log.
 - [x] Buat laporan awal: ledger, trial balance, profit & loss, balance sheet.
@@ -156,10 +156,10 @@ Checklist ini menentukan kapan project boleh dianggap siap live production. Item
 
 - [x] Rapikan navigasi sidebar agar menu laporan, administrasi, dan pengaturan tersusun sesuai konteks.
 - [x] Rancang offline mode POS dengan IndexedDB dan sync.
-- [ ] Buat fixed asset dan penyusutan.
-- [ ] Buat pajak.
-- [ ] Integrasi email reminder sungguhan untuk trial/subscription/invitation.
-- [ ] Monitoring produksi: error tracking, uptime check, metric queue, dan alerting.
+- [x] Buat fixed asset dan penyusutan.
+- [x] Buat pajak.
+- [x] Integrasi email reminder sungguhan untuk trial/subscription/invitation.
+- [x] Monitoring produksi: error tracking, uptime check, metric queue, dan alerting.
 
 ## Progress Log
 
@@ -203,7 +203,142 @@ Checklist ini menentukan kapan project boleh dianggap siap live production. Item
 - Validasi sidebar: `npm run build` berhasil dan LSP diagnostics 0 pada layout sidebar.
 - Mulai desain offline mode POS: audit kebutuhan IndexedDB, antrean checkout lokal, snapshot produk/gudang, dan strategi sync aman.
 - Desain offline mode POS selesai di `docs/POS_OFFLINE_MODE_PLAN.md`: scope MVP, batasan, schema IndexedDB, sync flow, endpoint server yang disarankan, UI states, risiko, dan rencana implementasi bertahap.
-
+- Mulai implementasi fixed asset dan penyusutan: data aset tetap, posting jurnal penyusutan, UI, dan test.
+- Fixed asset dan penyusutan selesai: migration/model aset tetap, jurnal perolehan aset, posting penyusutan bulanan, UI Aset Tetap, menu sidebar, dan test accounting.
+- Validasi fixed asset: `php artisan test --filter=AccountingCoreTest` berhasil — 4 passed, 25 assertions.
+- Validasi frontend fixed asset: `npm run build` berhasil.
+- Validasi LSP fixed asset: 0 diagnostics pada model/action/controller/page/route/test terkait.
+- Mulai implementasi pajak dasar: tarif pajak tenant, penerapan pajak invoice, jurnal hutang pajak, UI pajak, dan test.
+- Melanjutkan penyelesaian pajak dasar: memperbaiki halaman invoice yang terpotong, menambahkan halaman tarif pajak, validasi jurnal pajak, dan menyiapkan test/build.
+- Pajak dasar selesai: migration/model tarif pajak, seed PPN 11%, halaman Pajak, invoice dengan pilihan pajak per baris, jurnal pajak keluaran/masukan ke akun hutang pajak, dan menu sidebar aktif.
+- Validasi pajak: `./vendor/bin/pint --test` berhasil.
+- Validasi pajak: `php artisan test --filter=AccountingCoreTest` berhasil — 5 passed, 34 assertions.
+- Validasi invoice regression: `php artisan test --filter=AccountingV1Test` berhasil — 2 passed, 10 assertions.
+- Validasi MVP regression: `php artisan test --filter=MvpFlowTest` berhasil — 12 passed, 134 assertions.
+- Validasi frontend pajak: `npm run build` berhasil.
+- Validasi LSP pajak: 0 diagnostics pada action/controller/model/seeder/route/layout/page/test terkait.
+- Mulai integrasi email reminder sungguhan: invitation email, trial ending, subscription expiring/expired, command scheduler-safe, dan test notifikasi.
+- Email reminder sungguhan selesai: invitation mengirim notification mail, reminder trial/subscription dikirim ke owner/admin tenant, command `subscriptions:reminders --days=3` dedupe via `platform_audit_logs`, dan scheduler harian 08:00 ditambahkan.
+- Runbook scheduler diperbarui untuk command reminder email dan dedupe audit log.
+- Validasi email reminder: `./vendor/bin/pint --test` berhasil.
+- Validasi email reminder: `php artisan test --filter=EmailReminderTest` berhasil — 2 passed, 8 assertions.
+- Validasi regression email reminder: `php artisan test --filter=AccountingCoreTest` berhasil — 5 passed, 34 assertions; `php artisan test --filter=MvpFlowTest` berhasil — 12 passed, 134 assertions.
+- Validasi command reminder: `php artisan subscriptions:reminders --days=3` berhasil.
+- Validasi frontend setelah email reminder: `npm run build` berhasil.
+- Validasi LSP email reminder: 0 error diagnostics pada notification/action/controller/command/scheduler/test terkait.
+- Mulai hotfix halaman invoice `/invoices`: user melaporkan error di local server 127.0.0.1:8001 setelah perubahan pajak/email reminder.
+- Hotfix invoice selesai: penyebabnya migration local pending sehingga tabel `tax_rates` belum ada; menjalankan `php artisan migrate --force` dan `php artisan db:seed --class=DemoTenantSeeder --force`, lalu `2026_05_24_000002_create_fixed_assets_tables` dan `2026_05_24_000003_create_tax_tables` sudah `Ran`.
+- Validasi hotfix invoice: `curl -I http://127.0.0.1:8001/invoices` kembali 302 ke login tanpa error baru di `storage/logs/laravel.log`; setelah login halaman `/invoices` memakai tabel pajak yang sudah tersedia.
+- Mulai UX Kas/Bank: Akun Lawan perlu otomatis difilter sesuai jenis transaksi agar pengeluaran hanya menampilkan akun biaya/aset non-kas dan pemasukan hanya akun pendapatan/modal/kewajiban non-kas.
+- UX Kas/Bank selesai: Akun Lawan otomatis berubah mengikuti jenis transaksi — pengeluaran menampilkan biaya/aset non-kas, pemasukan menampilkan pendapatan/modal/kewajiban non-kas, dan transfer menampilkan kas/bank tujuan selain akun asal; backend ikut memvalidasi kombinasi akun.
+- Validasi UX Kas/Bank: `./vendor/bin/pint --test` berhasil.
+- Validasi UX Kas/Bank: `php artisan test --filter=AccountingCoreTest` berhasil — 6 passed, 51 assertions.
+- Validasi frontend UX Kas/Bank: `npm run build` berhasil.
+- Validasi LSP UX Kas/Bank: 0 diagnostics pada controller/page/test terkait.
+- Mulai koreksi filter Kas/Bank: `Hutang Dagang`/liability tidak boleh muncul di Pemasukan biasa karena bukan pendapatan; perlu dipindahkan ke konteks pembayaran hutang/pengeluaran.
+- Koreksi filter Kas/Bank selesai: Pemasukan hanya menampilkan pendapatan/modal (`revenue`, `equity`), Hutang Dagang/liability dipindahkan ke Pengeluaran untuk kasus bayar hutang, dan backend menolak pemasukan dengan akun hutang.
+- Validasi koreksi filter Kas/Bank: `./vendor/bin/pint --test` berhasil.
+- Validasi koreksi filter Kas/Bank: `php artisan test --filter=AccountingCoreTest` berhasil — 6 passed, 53 assertions.
+- Validasi frontend koreksi filter Kas/Bank: `npm run build` berhasil.
+- Validasi LSP koreksi filter Kas/Bank: 0 diagnostics pada controller/page/test terkait.
+- Mulai perbaikan menyeluruh klasifikasi akun: Kas/Bank perlu jenis transaksi spesifik, invoice perlu filter akun sales/purchase yang benar, dan pajak masukan perlu akun asset terpisah dari hutang pajak.
+- Perbaikan menyeluruh klasifikasi akun selesai: Kas/Bank memakai jenis spesifik (Penerimaan Pendapatan, Setoran Modal, Pembayaran Beban, Bayar Hutang, Beli Aset, Transfer), masing-masing dengan filter akun lawan yang tepat dan validasi backend.
+- Invoice dirapikan: invoice penjualan hanya memilih akun pendapatan non-kas, invoice pembelian hanya memilih akun beban/aset non-kas, dan backend menolak akun yang salah konteks.
+- Pajak masukan dipisahkan dari hutang pajak: akun default `1070 Pajak Masukan Dibayar Dimuka` ditambahkan, `tax_rates.input_account_id` ditambahkan, dan invoice pembelian mendebit akun pajak masukan sementara invoice penjualan tetap mengkredit hutang pajak.
+- Nomor invoice/kas/transfer dibuat lebih unik dengan suffix acak agar transaksi cepat beruntun tidak bentrok unique constraint.
+- Validasi klasifikasi akun: `php artisan migrate --force` berhasil menjalankan `2026_05_24_000004_add_tax_input_account`.
+- Validasi klasifikasi akun: `./vendor/bin/pint --test` berhasil.
+- Validasi klasifikasi akun: `php artisan test --filter=AccountingCoreTest` berhasil — 6 passed, 56 assertions.
+- Validasi regression klasifikasi: `php artisan test --filter=AccountingV1Test` berhasil — 2 passed, 10 assertions; `php artisan test --filter=MvpFlowTest` berhasil — 12 passed, 134 assertions.
+- Validasi frontend klasifikasi akun: `npm run build` berhasil.
+- Validasi LSP klasifikasi akun: 0 diagnostics pada migration/action/controller/model/seeder/page/test terkait.
+- Mulai monitoring produksi: error tracking ringan, uptime check command, metric queue/database, dan alerting email/log untuk kondisi critical.
+- Monitoring produksi selesai: ditambahkan config `config/monitoring.php`, env monitoring, tabel/model `production_metrics`, command `production:monitor`, queue/log/database/uptime metrics, alert email/log `ProductionAlert`, dan exception report hook production.
+- Scheduler monitoring ditambahkan: `production:monitor --alert` berjalan tiap 5 menit tanpa overlap; `/health` kini mengecek failed queue threshold.
+- Runbook diperbarui dengan command `production:monitor --alert` dan env `MONITORING_ALERT_EMAIL`, `MONITORING_QUEUE_FAILED_THRESHOLD`, `MONITORING_LOG_ERROR_THRESHOLD`, `MONITORING_UPTIME_URLS`.
+- Validasi monitoring: `php artisan migrate --force` berhasil menjalankan `2026_05_24_000005_create_production_metrics_table`.
+- Validasi monitoring: `./vendor/bin/pint --test` berhasil.
+- Validasi monitoring: `php artisan test --filter=ProductionMonitoringTest` berhasil — 3 passed, 9 assertions.
+- Validasi regression monitoring: `php artisan test --filter=AccountingCoreTest` berhasil — 6 passed, 56 assertions; `php artisan test --filter=EmailReminderTest` berhasil — 2 passed, 8 assertions; `php artisan test --filter=MvpFlowTest` berhasil — 12 passed, 134 assertions.
+- Validasi frontend monitoring: `npm run build` berhasil.
+- Validasi smoke monitoring: `php artisan app:smoke-check --require-build` berhasil.
+- Validasi LSP monitoring: 0 diagnostics pada config/model/migration/notification/support/command/bootstrap/controller/test terkait.
+- Catatan local monitoring: `php artisan production:monitor` mendeteksi `logs.recent_errors` critical karena file log lokal masih berisi error historis; ini normal untuk local dan bisa hilang setelah log dibersihkan/rotasi.
+- Mulai fitur print preset: POS receipt dan invoice perlu opsi thermal 58/90mm, printer biasa/custom, serta dot matrix/custom dengan layout print-friendly.
+- Print preset selesai: komponen kontrol preset cetak ditambahkan dengan opsi Thermal 58mm, Thermal 90mm, Printer biasa A4, Printer biasa custom, dan Dot matrix custom; lebar/tinggi/margin bisa diubah sebelum print.
+- Struk POS diperbarui memakai preset cetak dan CSS `@page` print-friendly.
+- Invoice mendapat route dan halaman cetak baru `/invoices/{invoice}/print` dengan layout dokumen, tabel item, pajak, total, dan kontrol preset kertas/printer.
+- Tombol Cetak Invoice ditambahkan di daftar invoice agar user bisa langsung membuka halaman cetak invoice.
+- Recovery setelah Pi error: perubahan print preset diverifikasi ulang dan test coverage invoice print route ditambahkan.
+- Validasi print preset: LSP diagnostics 0 pada komponen kontrol preset, util/hook print, halaman struk, halaman cetak invoice, controller, dan route terkait.
+- Validasi print preset: `npm run build` berhasil.
+- Validasi print preset: `./vendor/bin/pint --test` berhasil.
+- Validasi regression print preset: `php artisan test --filter=MvpFlowTest` berhasil — 12 passed, 151 assertions.
+- Mulai preferensi cetak permanen: Pengaturan Usaha perlu menyimpan default printer/layout untuk struk POS dan invoice.
+- Preferensi cetak permanen selesai: Pengaturan Usaha kini punya bagian Preferensi Cetak untuk Struk POS dan Invoice, menyimpan preset/lebar/tinggi/margin di `tenants.settings.print_preferences`.
+- Halaman struk POS dan cetak invoice otomatis memakai default preferensi cetak tenant, namun tetap bisa diubah manual sebelum klik Cetak.
+- Validasi preferensi cetak: LSP diagnostics 0 pada support/controller/page/hook/util/test terkait.
+- Validasi preferensi cetak: `php artisan test --filter=MvpFlowTest` berhasil — 13 passed, 186 assertions.
+- Validasi regression preferensi cetak: `php artisan test --filter=AccountingCoreTest` berhasil — 6 passed, 56 assertions.
+- Validasi frontend preferensi cetak: `npm run build` berhasil.
+- Validasi formatter preferensi cetak: `./vendor/bin/pint --test` berhasil.
+- Mulai koreksi UX menu preferensi cetak: pengaturan printer tidak boleh dicampur di Pengaturan Usaha, perlu dipisah ke menu/halaman sendiri.
+- Koreksi UX menu preferensi cetak selesai: preferensi printer dipindah dari Pengaturan Usaha ke halaman/menu sendiri `Pengaturan Cetak` dengan route `/print-settings`.
+- Pengaturan Usaha kembali hanya berisi profil usaha, legal/tax, prefix, dan default akun; test memastikan `tenant.print_preferences` tidak lagi dikirim ke halaman tersebut.
+- Validasi koreksi menu cetak: LSP diagnostics 0 pada controller/route/layout/page/test terkait.
+- Validasi koreksi menu cetak: `php artisan test --filter=MvpFlowTest` berhasil — 13 passed, 197 assertions.
+- Validasi frontend koreksi menu cetak: `npm run build` berhasil.
+- Validasi formatter koreksi menu cetak: `./vendor/bin/pint --test` berhasil.
+- Validasi regression koreksi menu cetak: `php artisan test --filter=AccountingCoreTest` berhasil — 6 passed, 56 assertions.
+- Mulai audit penempatan menu/halaman lain: cek apakah masih ada fitur yang tercampur di menu atau halaman yang kurang sesuai konteks user.
+- Audit penempatan menu selesai: sidebar dicek terhadap route/page utama; ditemukan grouping Penjualan terlalu luas karena mencampur kontak master data dan invoice piutang/hutang.
+- Sidebar dirapikan lagi: grup `Penjualan` diubah menjadi `Transaksi`, `Invoice` diberi label lebih jelas `Invoice Piutang/Hutang`, `Kontak` dipindahkan ke grup baru `Data Master`, dan `Akuntansi & Kas` disederhanakan menjadi `Akuntansi`.
+- Tidak ditemukan pengaturan printer tersisa di Pengaturan Usaha; route/page printer sudah berdiri sendiri di `Pengaturan Cetak`.
+- Validasi audit menu: LSP diagnostics 0 pada layout/sidebar, route, controller, page, dan test terkait.
+- Validasi audit menu: `php artisan test --filter=MvpFlowTest` berhasil.
+- Validasi frontend audit menu: `npm run build` berhasil.
+- Validasi formatter audit menu: `./vendor/bin/pint --test` berhasil.
+- Mulai integrasi logic printer thermal Bluetooth POS: audit implementasi referensi di `C:\xampp\htdocs\rangkayo-laravel` dan samakan logic POS tanpa mencampur menu pengaturan.
+- Logic printer thermal Bluetooth POS selesai disamakan dengan referensi RangKayo: Web Bluetooth memakai device tersimpan di localStorage, legacy key `pos_printer`, service thermal umum (`18f0`, `ffe0`, `ff00`, `49535343`), fallback scan writable characteristic, reconnect otomatis, chunk write 180 byte, ESC/POS init + cut, dan fallback Cetak Browser untuk USB/dialog print.
+- Halaman struk POS kini punya panel printer thermal Bluetooth terpisah dengan status reconnect, tombol Connect/Test, dan tombol Cetak Bluetooth; preset layout tetap di panel preset cetak.
+- Pengaturan Cetak diberi copy jelas: Bluetooth thermal bisa direct dari browser, USB thermal tetap lewat dialog print browser/Windows.
+- Validasi printer Bluetooth POS: LSP diagnostics 0 pada type global Web Bluetooth, utility printer, halaman struk POS, dan halaman Pengaturan Cetak.
+- Validasi frontend printer Bluetooth POS: `npm run build` berhasil.
+- Validasi regression printer Bluetooth POS: `php artisan test --filter=MvpFlowTest` berhasil — 13 passed, 197 assertions.
+- Validasi formatter printer Bluetooth POS: `./vendor/bin/pint --test` berhasil.
+- Mulai profil koneksi printer: Pengaturan Cetak perlu bisa menyimpan/edit default koneksi printer POS dan invoice agar USB/browser print atau Bluetooth bisa dipilih sekali lalu dipakai saat cetak.
+- Profil koneksi printer selesai: Pengaturan Cetak kini menyimpan `connection` (`browser`/`bluetooth`), `printer_name`, dan `auto_print` per konteks Struk POS dan Invoice.
+- Struk POS memakai koneksi default dari Pengaturan Cetak: jika `bluetooth`, tombol cetak default mengirim langsung ke thermal Bluetooth; jika `browser`, tombol cetak membuka dialog print browser/Windows untuk USB/default printer.
+- Catatan batasan USB/browser: web app harus tetap bisa dipakai dari browser HP/tablet/komputer. Bluetooth thermal direct didukung lewat Web Bluetooth pada browser mobile yang mendukung (contoh Chrome/Edge Android); USB/browser print mengikuti dialog print perangkat yang sedang dipakai. Silent print penuh tetap membutuhkan dukungan device/browser khusus seperti kiosk/native bridge/WebUSB.
+- Validasi profil koneksi printer: LSP diagnostics 0 pada support, type, halaman Pengaturan Cetak, halaman struk POS, dan test terkait.
+- Validasi frontend profil koneksi printer: `npm run build` berhasil.
+- Validasi profil koneksi printer: `php artisan test --filter=MvpFlowTest` berhasil — 13 passed, 206 assertions.
+- Validasi formatter profil koneksi printer: `./vendor/bin/pint --test` berhasil.
+- Mulai koreksi dukungan browser HP/mobile: copy dan flow printer tidak boleh Windows-centric karena POS harus bisa dipakai dari browser HP.
+- Koreksi dukungan browser HP selesai: copy Pengaturan Cetak dan halaman struk POS diganti menjadi lintas perangkat (HP/tablet/komputer), menjelaskan Bluetooth thermal direct via Web Bluetooth mobile dan USB/browser print via dialog print perangkat.
+- Validasi koreksi browser HP: LSP diagnostics 0 pada halaman Pengaturan Cetak dan struk POS.
+- Validasi frontend koreksi browser HP: `npm run build` berhasil.
+- Mulai implementasi domain SaaS RangKayo: homepage `rangkayo.my.id`, admin `admin.rangkayo.my.id`, app `app.rangkayo.my.id`, POS `pos.rangkayo.my.id`, semuanya via Cloudflare Tunnel dan tetap aman untuk local/dev.
+- Domain SaaS selesai tahap fondasi: ditambahkan `config/domains.php`, support `SaasDomains`, dan middleware `EnsureSaasDomain` yang bisa enforce host ketika `SAAS_ENFORCE_DOMAINS=true` namun nonaktif default untuk local/dev.
+- Route homepage kini bernama `home`; host enforcement mengarahkan `rangkayo.my.id` ke landing, `admin.rangkayo.my.id` ke platform admin, `app.rangkayo.my.id` ke app/dashboard, dan `pos.rangkayo.my.id` ke POS/shift/receipt.
+- `.env.example`, `docs/PRODUCTION_CHECKLIST.md`, dan `docs/RUNBOOK.md` diperbarui dengan domain Cloudflare Tunnel, `SESSION_DOMAIN=.rangkayo.my.id`, cookie secure, dan mapping hostnames.
+- Validasi domain SaaS: LSP diagnostics 0 pada config/support/middleware/bootstrap/route terkait.
+- Validasi domain SaaS: `php artisan test --filter=MvpFlowTest` berhasil — 13 passed, 206 assertions.
+- Validasi route domain SaaS: `php artisan route:list --path=platform --except-vendor` dan `php artisan route:list --path=pos --except-vendor` berhasil.
+- Validasi frontend domain SaaS: `npm run build` berhasil.
+- Validasi formatter domain SaaS: `./vendor/bin/pint --test` berhasil.
+- Mulai redesign homepage marketing RangKayo: landing `rangkayo.my.id` perlu white clean, style iOS/macOS seperti app, copy manusiawi, tidak ribet, dan tetap kuat secara marketing.
+- Homepage marketing RangKayo selesai didesain ulang: warna dominan putih clean, soft glass, rounded besar, shadow halus, hero manusiawi `Jualan jalan, pembukuan ikut rapi`, CTA jelas, kartu ringkasan usaha, modul POS/Akuntansi/Multi cabang, dan langkah mulai yang sederhana.
+- Copy homepage diganti dari bahasa teknis stack/blueprint menjadi bahasa pemilik usaha: jualan, stok, kas, invoice, cabang, laporan, dan pembukuan rapi.
+- Validasi homepage: LSP diagnostics 0 pada `resources/js/Pages/Welcome.tsx`.
+- Validasi frontend homepage: `npm run build` berhasil.
+- Mulai polish register SaaS: halaman daftar perlu production-ready dengan style putih clean/iOS, copy manusiawi, form bertahap owner-usaha-cabang, dan redirect domain-aware ke app domain setelah sukses.
+- Register SaaS selesai dipoles: halaman daftar kini memakai style putih clean/soft glass, copy manusiawi, layout dua kolom, langkah owner-usaha-cabang, dan form onboarding usaha yang lebih jelas.
+- Redirect register dibuat domain-aware: setelah daftar, user diarahkan ke route dashboard di `app.rangkayo.my.id` ketika `SAAS_ENFORCE_DOMAINS=true`, namun tetap aman untuk local/dev.
+- Validasi register SaaS: LSP diagnostics 0 pada halaman register, support domain, dan controller register.
+- Validasi frontend register SaaS: `npm run build` berhasil.
+- Validasi regression register SaaS: `php artisan test --filter=MvpFlowTest` berhasil — 13 passed, 206 assertions.
+- Validasi formatter register SaaS: `./vendor/bin/pint --test` berhasil.
 ### 2026-05-23
 
 - Mulai production-readiness: audit status project menunjukkan demo/UAT sudah valid, tetapi live production masih membutuhkan release workflow, dokumentasi deploy, readiness checklist, health/smoke check, fitur transfer kas/bank, laporan stok, filter laporan keuangan, dan audit akhir.

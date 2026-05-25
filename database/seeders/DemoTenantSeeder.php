@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\Accounting\Account;
+use App\Models\Accounting\TaxRate;
 use App\Models\Branch;
 use App\Models\Contact;
 use App\Models\Inventory\Product;
@@ -109,6 +110,18 @@ class DemoTenantSeeder extends Seeder
                 ],
             );
         }
+
+        TaxRate::query()->firstOrCreate(
+            ['tenant_id' => $tenant->id, 'code' => 'PPN11'],
+            [
+                'account_id' => Account::query()->where('tenant_id', $tenant->id)->where('code', '2020')->value('id'),
+                'input_account_id' => Account::query()->where('tenant_id', $tenant->id)->where('code', '1070')->value('id'),
+                'name' => 'PPN 11%',
+                'rate' => 11,
+                'is_default' => true,
+                'is_active' => true,
+            ],
+        );
 
         $unit = Unit::query()->firstOrCreate(
             ['tenant_id' => $tenant->id, 'symbol' => 'pcs'],

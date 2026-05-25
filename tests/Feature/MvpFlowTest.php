@@ -47,6 +47,9 @@ class MvpFlowTest extends TestCase
         $this->assertSame(2, InventoryMovement::query()->where('tenant_id', $tenant->id)->count());
         $this->assertSame(2, JournalEntry::query()->where('tenant_id', $tenant->id)->count());
         $this->assertTrue($sale->journalEntry->isBalanced());
+
+        $owner = User::query()->where('email', 'owner@akutansia.test')->firstOrFail();
+        $this->actingAs($owner)->get(route('pos.receipt', $sale))->assertOk();
     }
 
     public function test_authenticated_user_can_open_mvp_pages(): void
@@ -190,6 +193,47 @@ class MvpFlowTest extends TestCase
 
         $this->assertInstanceOf(Invoice::class, $invoice);
         $this->assertSame(5.0, $product->fresh()->stockOnHand($secondWarehouse->id));
+
+        $tenant->update([
+            'settings' => [
+                'print_preferences' => [
+                    'receipt' => [
+                        'preset' => 'thermal-90',
+                        'width' => '90mm',
+                        'height' => 'auto',
+                        'margin' => '4mm',
+                    ],
+                    'invoice' => [
+                        'preset' => 'dot-matrix',
+                        'width' => '241mm',
+                        'height' => '140mm',
+                        'margin' => '6mm',
+                    ],
+                ],
+            ],
+        ]);
+
+        $sale = Sale::query()->where('tenant_id', $tenant->id)->latest('id')->firstOrFail();
+        $this->actingAs($owner)
+            ->get(route('pos.receipt', $sale))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('POS/Receipt')
+                ->where('printPreference.preset', 'thermal-90')
+                ->where('printPreference.width', '90mm')
+            );
+
+        $this->actingAs($owner)
+            ->get(route('invoices.print', $invoice))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Accounting/Invoices/Print')
+                ->where('invoice.id', $invoice->id)
+                ->where('invoice.invoice_number', $invoice->invoice_number)
+                ->where('printPreference.preset', 'dot-matrix')
+                ->where('printPreference.width', '241mm')
+                ->has('invoice.items', 1)
+            );
     }
 
     public function test_stock_transfer_requires_approval_and_receive(): void
@@ -465,6 +509,67 @@ class MvpFlowTest extends TestCase
                 ->where('mode', 'cashier')
                 ->where('branch.id', $assignedBranch->id)
             );
+    }
+
+    public function test_owner_can_update_print_preferences_from_print_settings(): void
+    {
+        $this->seed(DemoTenantSeeder::class);
+
+        $tenant = Tenant::query()->where('slug', 'demo-payakumbuh')->firstOrFail();
+        $user = User::query()->where('email', 'owner@akutansia.test')->firstOrFail();
+
+        $this->actingAs($user)
+            ->get(route('tenant-settings.edit'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Tenancy/Settings/Edit')
+                ->missing('tenant.print_preferences')
+            );
+
+        $this->actingAs($user)
+            ->get(route('print-settings.edit'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Tenancy/PrintSettings/Edit')
+                ->where('printPreferences.receipt.preset', 'thermal-58')
+                ->where('printPreferences.receipt.connection', 'browser')
+                ->where('printPreferences.receipt.auto_print', false)
+                ->where('printPreferences.invoice.preset', 'standard-a4')
+                ->where('printPreferences.invoice.connection', 'browser')
+            );
+
+        $this->actingAs($user)
+            ->patch(route('print-settings.update'), [
+                'print_preferences' => [
+                    'receipt' => [
+                        'preset' => 'thermal-90',
+                        'width' => '90mm',
+                        'height' => 'auto',
+                        'margin' => '4mm',
+                        'connection' => 'bluetooth',
+                        'printer_name' => 'Thermal Kasir Bluetooth',
+                        'auto_print' => true,
+                    ],
+                    'invoice' => [
+                        'preset' => 'standard-a4',
+                        'width' => '210mm',
+                        'height' => '297mm',
+                        'margin' => '15mm',
+                        'connection' => 'browser',
+                        'printer_name' => 'Printer Kantor USB',
+                        'auto_print' => false,
+                    ],
+                ],
+            ])
+            ->assertRedirect();
+
+        $tenant->refresh();
+
+        $this->assertSame('thermal-90', $tenant->settings['print_preferences']['receipt']['preset']);
+        $this->assertSame('bluetooth', $tenant->settings['print_preferences']['receipt']['connection']);
+        $this->assertTrue($tenant->settings['print_preferences']['receipt']['auto_print']);
+        $this->assertSame('Printer Kantor USB', $tenant->settings['print_preferences']['invoice']['printer_name']);
+        $this->assertSame('15mm', $tenant->settings['print_preferences']['invoice']['margin']);
     }
 
     public function test_authenticated_user_can_update_product(): void

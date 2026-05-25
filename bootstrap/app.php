@@ -1,10 +1,13 @@
 <?php
 
 use App\Http\Middleware\EnsurePlatformAdmin;
+use App\Http\Middleware\EnsureSaasDomain;
 use App\Http\Middleware\EnsureTenantRole;
 use App\Http\Middleware\EnsureTenantSubscriptionActive;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\RedirectCashierToPos;
+use App\Support\ProductionAlert;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -16,8 +19,13 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
     )
+    ->withSchedule(function (Schedule $schedule): void {
+        $schedule->command('subscriptions:reminders')->dailyAt('08:00')->withoutOverlapping();
+        $schedule->command('production:monitor --alert')->everyFiveMinutes()->withoutOverlapping();
+    })
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->web(append: [
+            EnsureSaasDomain::class,
             HandleInertiaRequests::class,
             AddLinkHeadersForPreloadedAssets::class,
         ]);
@@ -30,5 +38,13 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+        $exceptions->reportable(function (Throwable $exception): void {
+            if (app()->environment('production')) {
+                ProductionAlert::critical('Unhandled application exception', $exception->getMessage(), [
+                    'exception' => $exception::class,
+                    'file' => $exception->getFile(),
+                    'line' => $exception->getLine(),
+                ]);
+            }
+        });
     })->create();

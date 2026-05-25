@@ -52,7 +52,7 @@ const navigationGroups: NavigationGroup[] = [
 		],
 	},
 	{
-		title: "Penjualan",
+		title: "Transaksi",
 		items: [
 			{
 				name: "POS",
@@ -60,7 +60,7 @@ const navigationGroups: NavigationGroup[] = [
 				roles: ["owner", "admin", "branch_manager", "cashier"],
 			},
 			{
-				name: "Invoice",
+				name: "Invoice Piutang/Hutang",
 				href: "invoices.index",
 				roles: ["owner", "admin", "accountant", "branch_manager"],
 			},
@@ -69,6 +69,11 @@ const navigationGroups: NavigationGroup[] = [
 				href: "cashier-shifts.index",
 				roles: ["owner", "admin", "branch_manager", "cashier"],
 			},
+		],
+	},
+	{
+		title: "Data Master",
+		items: [
 			{
 				name: "Kontak",
 				href: "contacts.index",
@@ -102,7 +107,7 @@ const navigationGroups: NavigationGroup[] = [
 		],
 	},
 	{
-		title: "Akuntansi & Kas",
+		title: "Akuntansi",
 		items: [
 			{
 				name: "Transaksi Kas/Bank",
@@ -117,6 +122,16 @@ const navigationGroups: NavigationGroup[] = [
 			{
 				name: "Jurnal Manual",
 				href: "manual-journal.create",
+				roles: ["owner", "admin", "accountant"],
+			},
+			{
+				name: "Aset Tetap",
+				href: "fixed-assets.index",
+				roles: ["owner", "admin", "accountant"],
+			},
+			{
+				name: "Pajak",
+				href: "taxes.index",
 				roles: ["owner", "admin", "accountant"],
 			},
 			{
@@ -203,6 +218,11 @@ const navigationGroups: NavigationGroup[] = [
 			{
 				name: "Pengaturan Usaha",
 				href: "tenant-settings.edit",
+				roles: ["owner", "admin"],
+			},
+			{
+				name: "Pengaturan Cetak",
+				href: "print-settings.edit",
 				roles: ["owner", "admin"],
 			},
 			{

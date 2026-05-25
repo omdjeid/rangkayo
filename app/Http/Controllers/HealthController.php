@@ -6,6 +6,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Throwable;
 
@@ -18,6 +19,7 @@ class HealthController extends Controller
             'cache' => $this->checkCache(),
             'storage' => $this->checkStorage(),
             'routes' => $this->checkRoutes(),
+            'queue' => $this->checkQueue(),
         ];
 
         $healthy = collect($checks)->every(fn (array $check): bool => $check['ok'] === true);
@@ -76,6 +78,24 @@ class HealthController extends Controller
             Storage::disk('local')->delete($path);
 
             return ['ok' => $ok, 'message' => $ok ? 'Local storage is writable.' : 'Local storage write check failed.'];
+        } catch (Throwable $exception) {
+            return ['ok' => false, 'message' => $exception->getMessage()];
+        }
+    }
+
+    /**
+     * @return array{ok:bool, message:string}
+     */
+    private function checkQueue(): array
+    {
+        try {
+            $failed = Schema::hasTable('failed_jobs') ? DB::table('failed_jobs')->count() : 0;
+            $threshold = (int) config('monitoring.queue_failed_threshold', 1);
+
+            return [
+                'ok' => $failed < $threshold,
+                'message' => $failed < $threshold ? 'Queue failures are below threshold.' : "Failed jobs threshold exceeded: {$failed}.",
+            ];
         } catch (Throwable $exception) {
             return ['ok' => false, 'message' => $exception->getMessage()];
         }

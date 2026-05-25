@@ -4,11 +4,13 @@ namespace App\Http\Controllers;
 
 use App\Models\TenantInvitation;
 use App\Models\User;
+use App\Notifications\TenantInvitationNotification;
 use App\Support\CurrentTenant;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
@@ -27,7 +29,8 @@ class TenantInvitationController extends Controller
             'branch_id' => ['nullable', Rule::exists('branches', 'id')->where('tenant_id', $tenant->id)],
         ]);
 
-        TenantInvitation::query()->create([
+        /** @var TenantInvitation $invitation */
+        $invitation = TenantInvitation::query()->create([
             ...$validated,
             'tenant_id' => $tenant->id,
             'invited_by' => $request->user()?->id,
@@ -35,7 +38,11 @@ class TenantInvitationController extends Controller
             'expires_at' => now()->addDays(7),
         ]);
 
-        return back()->with('success', 'Undangan dibuat. Pengiriman email akan diaktifkan pada tahap integrasi email.');
+        $invitation->load(['tenant', 'branch', 'inviter']);
+        Notification::route('mail', $invitation->email)
+            ->notify(new TenantInvitationNotification($invitation));
+
+        return back()->with('success', 'Undangan dibuat dan email invitation dikirim.');
     }
 
     public function accept(string $token): Response
