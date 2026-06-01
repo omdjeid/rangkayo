@@ -49,6 +49,12 @@ return Application::configure(basePath: dirname(__DIR__))
             'tenant.role' => EnsureTenantRole::class,
         ]);
     })
+    ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->validateCsrfTokens(except: [
+            'pos/checkout',
+            'api/*',
+        ]);
+    })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->reportable(function (Throwable $exception): void {
             if (app()->environment('production')) {
