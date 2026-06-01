@@ -48,8 +48,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'tenant.active' => EnsureTenantSubscriptionActive::class,
             'tenant.role' => EnsureTenantRole::class,
         ]);
-    })
-    ->withMiddleware(function (Middleware $middleware): void {
+
         $middleware->validateCsrfTokens(except: [
             'pos/checkout',
             'api/*',
