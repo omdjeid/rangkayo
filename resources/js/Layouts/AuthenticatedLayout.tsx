@@ -226,6 +226,11 @@ const navigationGroups: NavigationGroup[] = [
 				roles: ["owner", "admin"],
 			},
 			{
+				name: "QRIS",
+				href: "qris-settings.edit",
+				roles: ["owner", "admin"],
+			},
+			{
 				name: "Paket & Billing",
 				href: "billing.index",
 				roles: ["owner", "admin"],
