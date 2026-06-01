@@ -3,8 +3,8 @@ import FormField from "@/Components/FormField";
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
 import type { PageProps, WarehouseOption } from "@/types";
 import { formatCurrency, formatNumber } from "@/utils/format";
-import { Head, Link, useForm } from "@inertiajs/react";
-import { useMemo, useState } from "react";
+import { Head, Link } from "@inertiajs/react";
+import { useMemo, useRef, useState } from "react";
 
 interface Product {
 	id: number;
@@ -28,9 +28,270 @@ interface Sale {
 	grand_total: string | number;
 }
 
+interface QrisConfig {
+	merchant_name?: string;
+	qris_string?: string;
+	image_url?: string;
+	status?: string;
+}
+
+interface PrintJob {
+	id: number;
+	sale_number: string;
+	items: { name: string; quantity: number; price: number; subtotal: number }[];
+	grand_total: number;
+	paid_total: number;
+	change: number;
+	payment_method: string;
+	sold_at: string;
+	branch_name?: string;
+	warehouse_name?: string;
+	cashier_name?: string;
+}
+
 const inputClass =
 	"w-full rounded-2xl border-slate-200 bg-white/80 shadow-sm focus:border-cyan-400 focus:ring-cyan-400";
 
+function getCsrfToken(): string {
+	const meta = document.querySelector('meta[name="csrf-token"]');
+	if (meta) return meta.getAttribute("content") || "";
+	const match = document.cookie.match(/XSRF-TOKEN=([^;]+)/);
+	return match ? decodeURIComponent(match[1]) : "";
+}
+
+/* ─── Receipt renderer (used for auto-print) ─── */
+function renderReceiptHTML(job: PrintJob): string {
+	const itemsHTML = (job.items || [])
+		.map(
+			(i) =>
+				`<tr><td>${i.name}</td><td style="text-align:right">${i.quantity}</td><td style="text-align:right">${formatCurrency(i.price)}</td><td style="text-align:right">${formatCurrency(i.subtotal)}</td></tr>`,
+		)
+		.join("");
+	return `<!DOCTYPE html><html><head><style>
+body{font-family:monospace;font-size:12px;width:80mm;margin:0;padding:8px}
+h3{text-align:center;margin:4px 0}table{width:100%;border-collapse:collapse}td{padding:2px 0}
+hr{border:none;border-top:1px dashed #000;margin:8px 0}
+.total-line{display:flex;justify-content:space-between;font-weight:bold;font-size:13px}
+</style></head><body>
+<h3>STRUK PEMBAYARAN</h3>
+${job.branch_name ? `<p style="text-align:center">${job.branch_name}${job.warehouse_name ? " · " + job.warehouse_name : ""}</p>` : ""}
+<hr/>
+<p>No: ${job.sale_number}</p>
+<p>Tgl: ${job.sold_at}</p>
+<p>Kasir: ${job.cashier_name || "-"}</p>
+<hr/>
+<table><thead><tr><th>Item</th><th style="text-align:right">Qty</th><th style="text-align:right">Harga</th><th style="text-align:right">Subtotal</th></tr></thead>
+<tbody>${itemsHTML}</tbody></table>
+<hr/>
+<div class="total-line"><span>Total</span><span>${formatCurrency(job.grand_total)}</span></div>
+<div class="total-line"><span>Bayar (${job.payment_method})</span><span>${formatCurrency(job.paid_total)}</span></div>
+<div class="total-line"><span>Kembali</span><span>${formatCurrency(job.change)}</span></div>
+<hr/>
+<p style="text-align:center">Terima kasih!</p>
+</body></html>`;
+}
+
+/* ─── Payment Modal ─── */
+function PaymentModal({
+	total,
+	warehouseId,
+	cartItems,
+	qris,
+	onClose,
+	onSuccess,
+}: {
+	total: number;
+	warehouseId: string;
+	cartItems: { product_id: number; quantity: number }[];
+	qris?: QrisConfig | null;
+	onClose: () => void;
+	onSuccess: () => void;
+}) {
+	const [paymentMethod, setPaymentMethod] = useState<"cash" | "bank" | "qris">("cash");
+	const [cashAmount, setCashAmount] = useState("");
+	const [processing, setProcessing] = useState(false);
+	const [copied, setCopied] = useState(false);
+
+	const effectiveCash = paymentMethod === "cash" ? Number(cashAmount) || total : total;
+	const change = paymentMethod === "cash" ? Math.max(0, effectiveCash - total) : 0;
+	const cashShort = paymentMethod === "cash" && Number(cashAmount) > 0 && Number(cashAmount) < total;
+
+	async function handlePay() {
+		if (processing || cashShort) return;
+		setProcessing(true);
+
+		const paidTotal = paymentMethod === "cash" ? effectiveCash : total;
+		const backendMethod = paymentMethod === "cash" ? "cash" : "bank";
+		const csrfToken = getCsrfToken();
+
+		try {
+			const res = await fetch(route("pos.checkout", { warehouse_id: warehouseId }), {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+					Accept: "application/json",
+					"X-Requested-With": "XMLHttpRequest",
+					"X-CSRF-TOKEN": csrfToken,
+				},
+				body: JSON.stringify({
+					_token: csrfToken,
+					warehouse_id: warehouseId,
+					payment_method: backendMethod,
+					paid_total: paidTotal.toString(),
+					items: cartItems,
+				}),
+			});
+
+			if (!res.ok) {
+				const errData = await res.json().catch(() => ({}));
+				throw new Error(errData.message || `HTTP ${res.status}`);
+			}
+
+			await res.json();
+			onSuccess();
+		} catch (err: unknown) {
+			const message = err instanceof Error ? err.message : "Unknown error";
+			alert("Gagal memproses pembayaran: " + message);
+			setProcessing(false);
+		}
+	}
+
+	return (
+		<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+			<div className="w-full max-w-lg rounded-3xl border border-white/60 bg-white p-6 shadow-2xl">
+				<div className="flex items-center justify-between">
+					<h3 className="text-xl font-bold text-slate-950">Pembayaran</h3>
+					<button type="button" onClick={onClose} className="text-2xl leading-none text-slate-400 hover:text-slate-700">&times;</button>
+				</div>
+
+				{/* Total */}
+				<div className="mt-4 rounded-2xl bg-slate-950 p-4 text-white">
+					<p className="text-sm text-slate-300">Total Tagihan</p>
+					<p className="text-3xl font-bold">{formatCurrency(total)}</p>
+				</div>
+
+				{/* Method tabs */}
+				<div className="mt-5 flex gap-2">
+					{(["cash", "bank", "qris"] as const).map((m) => (
+						<button
+							key={m}
+							type="button"
+							onClick={() => setPaymentMethod(m)}
+							className={`flex-1 rounded-2xl py-3 text-sm font-bold transition ${
+								paymentMethod === m
+									? "bg-cyan-400 text-slate-950 shadow-lg shadow-cyan-200"
+									: "bg-slate-100 text-slate-500 hover:bg-slate-200"
+							}`}
+						>
+							{m === "cash" ? "Tunai" : m === "bank" ? "Bank/Transfer" : "QRIS"}
+						</button>
+					))}
+				</div>
+
+				{/* Cash panel */}
+				{paymentMethod === "cash" && (
+					<div className="mt-4 space-y-3">
+						<FormField label="Nominal Dibayar" hint="Masukkan jumlah uang yang diterima dari pelanggan.">
+							<input
+								className={inputClass}
+								type="number"
+								placeholder="Contoh: 100000"
+								value={cashAmount}
+								onChange={(e) => setCashAmount(e.target.value)}
+								min={total}
+							/>
+						</FormField>
+						<div className="flex flex-wrap gap-2">
+							{[
+								{ label: "Sesuai Total", value: total },
+								{ label: "Rp50.000", value: 50000 },
+								{ label: "Rp100.000", value: 100000 },
+								{ label: "Rp200.000", value: 200000 },
+							].map((btn) => (
+								<button
+									key={btn.label}
+									type="button"
+									onClick={() => setCashAmount(btn.value.toString())}
+									className="rounded-xl bg-slate-100 px-3 py-2 text-xs font-bold text-slate-600 transition hover:bg-slate-200"
+								>
+									{btn.label}
+								</button>
+							))}
+						</div>
+						{change > 0 && (
+							<div className="rounded-2xl bg-emerald-50 p-3 text-sm font-semibold text-emerald-700">
+								Kembalian: {formatCurrency(change)}
+							</div>
+						)}
+						{cashShort && (
+							<div className="rounded-2xl bg-rose-50 p-3 text-sm font-semibold text-rose-600">
+								Nominal kurang dari total!
+							</div>
+						)}
+					</div>
+				)}
+
+				{/* Bank panel */}
+				{paymentMethod === "bank" && (
+					<div className="mt-4 rounded-2xl bg-blue-50 p-4 text-sm text-blue-800">
+						Pelanggan akan membayar via transfer bank. Tekan <strong>Proses Pembayaran</strong> untuk mengonfirmasi.
+					</div>
+				)}
+
+				{/* QRIS panel */}
+				{paymentMethod === "qris" && (
+					<div className="mt-4 space-y-3">
+						{qris?.qris_string ? (
+							<>
+								<div className="relative">
+									<textarea
+										readOnly
+										className="w-full rounded-2xl border-slate-200 bg-white p-3 font-mono text-xs shadow-sm"
+										rows={4}
+										value={qris.qris_string}
+									/>
+									<button
+										type="button"
+										onClick={() => {
+											navigator.clipboard.writeText(qris.qris_string || "");
+											setCopied(true);
+											setTimeout(() => setCopied(false), 2000);
+										}}
+										className="absolute right-2 top-2 rounded-xl bg-cyan-100 px-3 py-1 text-xs font-bold text-cyan-700 transition hover:bg-cyan-200"
+									>
+										{copied ? "Tersalin!" : "Salin"}
+									</button>
+								</div>
+								{qris.merchant_name && (
+									<p className="text-sm text-slate-500">Merchant: {qris.merchant_name}</p>
+								)}
+								<div className="rounded-2xl bg-amber-50 p-3 text-sm font-semibold text-amber-700">
+									📱 Scan QRIS di atas oleh pelanggan
+								</div>
+							</>
+						) : (
+							<div className="rounded-2xl bg-slate-100 p-4 text-sm text-slate-500">
+								Konfigurasi QRIS belum tersedia. Silakan hubungi admin.
+							</div>
+						)}
+					</div>
+				)}
+
+				{/* Pay button */}
+				<button
+					type="button"
+					disabled={processing || cashShort}
+					onClick={handlePay}
+					className="mt-5 w-full rounded-2xl bg-cyan-400 px-5 py-3 font-bold text-slate-950 shadow-lg shadow-cyan-200 transition hover:bg-cyan-300 disabled:opacity-60"
+				>
+					{processing ? "Memproses…" : "Proses Pembayaran"}
+				</button>
+			</div>
+		</div>
+	);
+}
+
+/* ─── Main POS Workspace ─── */
 function PosWorkspace({
 	products,
 	recentSales,
@@ -39,6 +300,7 @@ function PosWorkspace({
 	warehouses,
 	openShift,
 	requiresShift,
+	qris,
 }: {
 	products: Product[];
 	recentSales: Sale[];
@@ -52,22 +314,18 @@ function PosWorkspace({
 		expected_cash: number;
 	} | null;
 	requiresShift: boolean;
+	qris?: QrisConfig | null;
 }) {
 	const [cart, setCart] = useState<CartItem[]>([]);
-	const form = useForm({
-		warehouse_id: warehouse.id.toString(),
-		payment_method: "cash",
-		paid_total: "",
-		items: [] as { product_id: number; quantity: number }[],
-	});
+	const [showPayment, setShowPayment] = useState(false);
+	const [toast, setToast] = useState<string | null>(null);
+	const [selectedWarehouse] = useState(warehouse.id.toString());
+	const printFrameRef = useRef<HTMLIFrameElement | null>(null);
 
 	const total = useMemo(
-		() =>
-			cart.reduce((sum, item) => sum + item.quantity * item.selling_price, 0),
+		() => cart.reduce((sum, item) => sum + item.quantity * item.selling_price, 0),
 		[cart],
 	);
-	const paid = Number(form.data.paid_total || total);
-	const change = Math.max(0, paid - total);
 
 	function addToCart(product: Product) {
 		if (product.stock <= 0) return;
@@ -94,28 +352,84 @@ function PosWorkspace({
 		);
 	}
 
-	function checkout(event: React.FormEvent) {
-		event.preventDefault();
-		form.setData({
-			warehouse_id: form.data.warehouse_id,
-			payment_method: form.data.payment_method,
-			paid_total: form.data.paid_total || total.toString(),
-			items: cart.map((item) => ({
-				product_id: item.id,
-				quantity: item.quantity,
-			})),
-		});
-		form.post(route("pos.checkout", { warehouse_id: form.data.warehouse_id }), {
-			preserveScroll: true,
-			onSuccess: () => {
-				setCart([]);
-				form.reset("paid_total");
-			},
-		});
+	function showToastMsg(msg: string) {
+		setToast(msg);
+		setTimeout(() => setToast(null), 4000);
+	}
+
+	/* Poll for print jobs after successful checkout */
+	async function pollPrintJobs() {
+		const maxAttempts = 10; // 10 x 1.5s = 15s
+		for (let i = 0; i < maxAttempts; i++) {
+			await new Promise((r) => setTimeout(r, 1500));
+			try {
+				const res = await fetch(route("pos.print-jobs.pull"), {
+					headers: {
+						Accept: "application/json",
+						"X-Requested-With": "XMLHttpRequest",
+						"X-CSRF-TOKEN": getCsrfToken(),
+					},
+				});
+				if (res.ok) {
+					const data = await res.json();
+					if (data.jobs && data.jobs.length > 0) {
+						printReceipt(data.jobs[0] as PrintJob);
+						return;
+					}
+				}
+			} catch {
+				// ignore and retry
+			}
+		}
+	}
+
+	function printReceipt(job: PrintJob) {
+		const iframe = printFrameRef.current;
+		if (!iframe) return;
+		const doc = iframe.contentDocument || iframe.contentWindow?.document;
+		if (!doc) return;
+		doc.open();
+		doc.write(renderReceiptHTML(job));
+		doc.close();
+		setTimeout(() => {
+			iframe.contentWindow?.print();
+		}, 300);
+	}
+
+	function openPayment() {
+		if (cart.length === 0) return;
+		setShowPayment(true);
+	}
+
+	async function handlePaymentSuccess() {
+		showToastMsg("Transaksi berhasil!");
+		setCart([]);
+
+		// Poll for print jobs (non-blocking)
+		await pollPrintJobs();
+
+		// Close modal after 3s
+		setTimeout(() => {
+			setShowPayment(false);
+		}, 3000);
 	}
 
 	return (
 		<div className="min-h-[calc(100vh-9rem)] bg-[radial-gradient(circle_at_top_left,_rgba(34,211,238,0.18),_transparent_32%),linear-gradient(180deg,_#f8fafc_0%,_#eef2ff_100%)] py-8">
+			{/* Hidden iframe for printing */}
+			<iframe
+				ref={printFrameRef}
+				style={{ position: "absolute", width: 0, height: 0, border: "none", opacity: 0 }}
+				title="Receipt Print"
+			/>
+
+			{/* Toast */}
+			{toast && (
+				<div className="fixed left-1/2 top-6 z-[60] -translate-x-1/2 rounded-2xl bg-emerald-500 px-6 py-3 text-sm font-bold text-white shadow-xl shadow-emerald-200 animate-bounce">
+					{toast}
+				</div>
+			)}
+
 			<div className="mx-auto grid max-w-7xl gap-6 px-4 sm:px-6 lg:grid-cols-[1.4fr_0.9fr] lg:px-8">
 				{requiresShift && !openShift && (
 					<div className="flex flex-col gap-3 rounded-[2rem] border border-amber-200 bg-amber-50/90 p-5 text-sm font-semibold text-amber-800 shadow-xl shadow-amber-100 sm:flex-row sm:items-center sm:justify-between lg:col-span-2">
@@ -134,6 +448,8 @@ function PosWorkspace({
 						{formatCurrency(openShift.opening_cash)}
 					</div>
 				)}
+
+				{/* Products Grid */}
 				<section className="rounded-[2rem] border border-white/80 bg-white/75 p-6 shadow-xl shadow-slate-200/70 backdrop-blur-2xl">
 					<div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
 						<div>
@@ -183,11 +499,9 @@ function PosWorkspace({
 					</div>
 				</section>
 
+				{/* Sidebar */}
 				<aside className="space-y-6">
-					<form
-						onSubmit={checkout}
-						className="rounded-[2rem] border border-white/80 bg-white/85 p-6 shadow-xl shadow-slate-200/70 backdrop-blur-2xl"
-					>
+					<div className="rounded-[2rem] border border-white/80 bg-white/85 p-6 shadow-xl shadow-slate-200/70 backdrop-blur-2xl">
 						<div className="flex items-center justify-between gap-3">
 							<div>
 								<p className="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">
@@ -256,9 +570,6 @@ function PosWorkspace({
 						<div className="mt-5 rounded-3xl bg-slate-950 p-5 text-white shadow-xl shadow-slate-300/70">
 							<p className="text-sm text-slate-300">Total</p>
 							<p className="text-3xl font-bold">{formatCurrency(total)}</p>
-							<p className="mt-2 text-sm text-cyan-200">
-								Kembalian: {formatCurrency(change)}
-							</p>
 						</div>
 
 						<div className="mt-4 space-y-3">
@@ -266,13 +577,11 @@ function PosWorkspace({
 								label="Gudang stok"
 								required
 								hint="Pilih gudang yang stoknya akan dikurangi untuk transaksi ini."
-								error={form.errors.warehouse_id}
 							>
 								<select
 									className={inputClass}
-									value={form.data.warehouse_id}
+									value={selectedWarehouse}
 									onChange={(e) => {
-										form.setData("warehouse_id", e.target.value);
 										window.location.href = route("pos.index", {
 											warehouse_id: e.target.value,
 										});
@@ -288,45 +597,18 @@ function PosWorkspace({
 								</select>
 							</FormField>
 
-							<FormField
-								label="Metode Pembayaran"
-								required
-								hint="Tunai masuk akun Kas, Bank/QRIS masuk akun Bank."
-								error={form.errors.payment_method}
-							>
-								<select
-									className={inputClass}
-									value={form.data.payment_method}
-									onChange={(e) =>
-										form.setData("payment_method", e.target.value)
-									}
-								>
-									<option value="cash">Tunai</option>
-									<option value="bank">Bank/QRIS</option>
-								</select>
-							</FormField>
-							<FormField
-								label="Nominal Dibayar"
-								hint="Kosongkan jika pembayaran pas sesuai total transaksi."
-								error={form.errors.paid_total}
-							>
-								<input
-									className={inputClass}
-									type="number"
-									placeholder="Contoh: 100000"
-									value={form.data.paid_total}
-									onChange={(e) => form.setData("paid_total", e.target.value)}
-								/>
-							</FormField>
 							<button
-								disabled={form.processing || cart.length === 0}
+								type="button"
+								disabled={cart.length === 0}
+								onClick={openPayment}
 								className="w-full rounded-2xl bg-cyan-400 px-5 py-3 font-bold text-slate-950 shadow-lg shadow-cyan-200 transition hover:bg-cyan-300 disabled:opacity-60"
 							>
-								Selesaikan Transaksi
+								Bayar
 							</button>
 						</div>
-					</form>
+					</div>
 
+					{/* Recent Sales */}
 					<section className="rounded-[2rem] border border-white/80 bg-white/75 p-6 shadow-xl shadow-slate-200/70 backdrop-blur-2xl">
 						<h3 className="text-lg font-semibold text-slate-950">
 							Transaksi Terakhir Cabang Ini
@@ -351,10 +633,23 @@ function PosWorkspace({
 					</section>
 				</aside>
 			</div>
+
+			{/* Payment Modal */}
+			{showPayment && (
+				<PaymentModal
+					total={total}
+					warehouseId={selectedWarehouse}
+					cartItems={cart.map((item) => ({ product_id: item.id, quantity: item.quantity }))}
+					qris={qris}
+					onClose={() => setShowPayment(false)}
+					onSuccess={handlePaymentSuccess}
+				/>
+			)}
 		</div>
 	);
 }
 
+/* ─── Exported Page ─── */
 export default function PosIndex({
 	products,
 	recentSales,
@@ -363,6 +658,7 @@ export default function PosIndex({
 	warehouses,
 	mode,
 	openShift,
+	qris,
 }: PageProps<{
 	products: Product[];
 	recentSales: Sale[];
@@ -376,6 +672,7 @@ export default function PosIndex({
 		opening_cash: number;
 		expected_cash: number;
 	} | null;
+	qris?: QrisConfig | null;
 }>) {
 	if (mode === "cashier") {
 		return (
@@ -423,6 +720,7 @@ export default function PosIndex({
 					warehouses={warehouses}
 					openShift={openShift}
 					requiresShift
+					qris={qris}
 				/>
 			</div>
 		);
@@ -450,6 +748,7 @@ export default function PosIndex({
 				warehouses={warehouses}
 				openShift={openShift}
 				requiresShift={false}
+				qris={qris}
 			/>
 		</AuthenticatedLayout>
 	);

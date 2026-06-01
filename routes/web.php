@@ -31,6 +31,8 @@ use App\Http\Controllers\PrintSettingsController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ReceiptController;
 use App\Http\Controllers\SalesReportController;
+use App\Http\Controllers\Tenant\PosPrintJobController;
+use App\Http\Controllers\Tenant\TelegramPosPairingController;
 use App\Http\Controllers\TenantInvitationController;
 use App\Http\Controllers\TenantSettingsController;
 use App\Http\Controllers\TenantSwitchController;
@@ -67,6 +69,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/pos', [PosController::class, 'index'])->name('pos.index');
         Route::post('/pos/checkout', [PosController::class, 'store'])->name('pos.checkout');
         Route::get('/pos/sales/{sale}/receipt', [ReceiptController::class, 'show'])->name('pos.receipt');
+        Route::post('/pos/print-jobs/pull', [PosPrintJobController::class, 'pull'])->name('pos.print-jobs.pull');
         Route::get('/cashier-shifts', [CashierShiftController::class, 'index'])->name('cashier-shifts.index');
         Route::post('/cashier-shifts/open', [CashierShiftController::class, 'open'])->name('cashier-shifts.open');
         Route::post('/cashier-shifts/close', [CashierShiftController::class, 'close'])->name('cashier-shifts.close');
@@ -105,6 +108,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/tenant-invitations', [TenantInvitationController::class, 'store'])->name('tenant-invitations.store');
         Route::get('/tenant-settings', [TenantSettingsController::class, 'edit'])->name('tenant-settings.edit');
         Route::patch('/tenant-settings', [TenantSettingsController::class, 'update'])->name('tenant-settings.update');
+        Route::post('/settings/telegram-pos/pairing-code', [TelegramPosPairingController::class, 'store'])->name('tenant.settings.telegram_pos.pairing_code');
         Route::get('/print-settings', [PrintSettingsController::class, 'edit'])->name('print-settings.edit');
         Route::patch('/print-settings', [PrintSettingsController::class, 'update'])->name('print-settings.update');
         Route::get('/branches-warehouses', [BranchWarehouseController::class, 'index'])->name('branches-warehouses.index');
