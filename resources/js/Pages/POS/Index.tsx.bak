@@ -2,17 +2,9 @@ import ApplicationLogo from "@/Components/ApplicationLogo";
 import FormField from "@/Components/FormField";
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
 import type { PageProps, WarehouseOption } from "@/types";
-import {
-	autoConnectBluetoothPrinter,
-	bluetoothSupported,
-	printThermalBluetoothReceipt,
-	receiptTextFromPayload,
-	savedBluetoothPrinter,
-	type ThermalReceiptPayload,
-} from "@/utils/thermalBluetoothPrinter";
 import { formatCurrency, formatNumber } from "@/utils/format";
 import { Head, Link } from "@inertiajs/react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 
 interface Product {
 	id: number;
@@ -44,16 +36,17 @@ interface QrisConfig {
 }
 
 interface PrintJob {
-	id: string;
+	id: number;
 	sale_number: string;
-	items: { product_name: string; quantity: number; unit_price: number; line_total: number }[];
+	items: { name: string; quantity: number; price: number; subtotal: number }[];
 	grand_total: number;
 	paid_total: number;
-	change_total: number;
+	change: number;
 	payment_method: string;
 	sold_at: string;
-	branch?: { name?: string; code?: string; phone?: string; address?: string };
-	cashier?: string;
+	branch_name?: string;
+	warehouse_name?: string;
+	cashier_name?: string;
 }
 
 const inputClass =
@@ -62,7 +55,7 @@ const inputClass =
 function getCsrfToken(): string {
 	const meta = document.querySelector('meta[name="csrf-token"]');
 	if (meta) return meta.getAttribute("content") || "";
-	const match = document.cookie.match(/XSRF-TOKEN=([^;]+)/i);
+	const match = document.cookie.match(/XSRF-TOKEN=([^;]+)/);
 	return match ? decodeURIComponent(match[1]) : "";
 }
 
@@ -71,7 +64,7 @@ function renderReceiptHTML(job: PrintJob): string {
 	const itemsHTML = (job.items || [])
 		.map(
 			(i) =>
-				`<tr><td>${i.product_name}</td><td style="text-align:right">${i.quantity}</td><td style="text-align:right">${formatCurrency(i.unit_price)}</td><td style="text-align:right">${formatCurrency(i.line_total)}</td></tr>`,
+				`<tr><td>${i.name}</td><td style="text-align:right">${i.quantity}</td><td style="text-align:right">${formatCurrency(i.price)}</td><td style="text-align:right">${formatCurrency(i.subtotal)}</td></tr>`,
 		)
 		.join("");
 	return `<!DOCTYPE html><html><head><style>
@@ -81,18 +74,18 @@ hr{border:none;border-top:1px dashed #000;margin:8px 0}
 .total-line{display:flex;justify-content:space-between;font-weight:bold;font-size:13px}
 </style></head><body>
 <h3>STRUK PEMBAYARAN</h3>
-${job.branch?.name ? `<p style="text-align:center">${job.branch.name}</p>` : ""}
+${job.branch_name ? `<p style="text-align:center">${job.branch_name}${job.warehouse_name ? " · " + job.warehouse_name : ""}</p>` : ""}
 <hr/>
 <p>No: ${job.sale_number}</p>
 <p>Tgl: ${job.sold_at}</p>
-<p>Kasir: ${job.cashier || "-"}</p>
+<p>Kasir: ${job.cashier_name || "-"}</p>
 <hr/>
 <table><thead><tr><th>Item</th><th style="text-align:right">Qty</th><th style="text-align:right">Harga</th><th style="text-align:right">Subtotal</th></tr></thead>
 <tbody>${itemsHTML}</tbody></table>
 <hr/>
 <div class="total-line"><span>Total</span><span>${formatCurrency(job.grand_total)}</span></div>
 <div class="total-line"><span>Bayar (${job.payment_method})</span><span>${formatCurrency(job.paid_total)}</span></div>
-<div class="total-line"><span>Kembali</span><span>${formatCurrency(job.change_total)}</span></div>
+<div class="total-line"><span>Kembali</span><span>${formatCurrency(job.change)}</span></div>
 <hr/>
 <p style="text-align:center">Terima kasih!</p>
 </body></html>`;
@@ -128,7 +121,7 @@ function PaymentModal({
 		setProcessing(true);
 
 		const paidTotal = paymentMethod === "cash" ? effectiveCash : total;
-		const backendMethod = paymentMethod === "cash" ? "cash" : paymentMethod === "qris" ? "qris" : "bank";
+		const backendMethod = paymentMethod === "cash" ? "cash" : "bank";
 		const csrfToken = getCsrfToken();
 
 		try {
@@ -154,8 +147,12 @@ function PaymentModal({
 				throw new Error(errData.message || `HTTP ${res.status}`);
 			}
 
-			await res.json();
-			onSuccess();
+			const data = await res.json();
+			if (data.receipt_url) {
+				window.location.href = data.receipt_url;
+			} else {
+				onSuccess();
+			}
 		} catch (err: unknown) {
 			const message = err instanceof Error ? err.message : "Unknown error";
 			alert("Gagal memproses pembayaran: " + message);
@@ -325,14 +322,6 @@ function PosWorkspace({
 }) {
 	const [cart, setCart] = useState<CartItem[]>([]);
 	const [showPayment, setShowPayment] = useState(false);
-	const [btStatus, setBtStatus] = useState(
-		bluetoothSupported()
-			? savedBluetoothPrinter()
-				? "Printer tersimpan siap"
-				: "Bluetooth tersedia — belum connect"
-			: "Bluetooth tidak didukung — transaksi tetap tersimpan",
-	);
-	const [btReady, setBtReady] = useState(false);
 	const [toast, setToast] = useState<string | null>(null);
 	const [selectedWarehouse] = useState(warehouse.id.toString());
 	const printFrameRef = useRef<HTMLIFrameElement | null>(null);
@@ -372,15 +361,6 @@ function PosWorkspace({
 		setTimeout(() => setToast(null), 4000);
 	}
 
-	/* Auto-connect Bluetooth printer on mount */
-	useEffect(() => {
-		if (!bluetoothSupported()) return;
-		autoConnectBluetoothPrinter((msg, ready) => {
-			setBtStatus(msg);
-			setBtReady(ready);
-		}, 2);
-	}, []);
-
 	/* Poll for print jobs after successful checkout */
 	async function pollPrintJobs() {
 		const maxAttempts = 10; // 10 x 1.5s = 15s
@@ -407,38 +387,7 @@ function PosWorkspace({
 		}
 	}
 
-	async function printReceipt(job: PrintJob) {
-		// Try thermal Bluetooth printer first
-		if (btReady && bluetoothSupported()) {
-			try {
-				const payload: ThermalReceiptPayload = {
-					tenant_name: "RangKayo",
-					sale_number: job.sale_number,
-					sold_at: job.sold_at,
-					payment_method: job.payment_method,
-					subtotal: job.items.reduce((s, i) => s + i.line_total, 0),
-					grand_total: job.grand_total,
-					paid_total: job.paid_total,
-					change_total: job.change_total,
-					cashier: job.cashier ?? null,
-					branch: job.branch ? { name: job.branch.name ?? null, phone: job.branch.phone ?? null, address: job.branch.address ?? null } : null,
-					items: job.items.map((i) => ({
-						product_name: i.product_name,
-						quantity: i.quantity,
-						unit_price: i.unit_price,
-						line_total: i.line_total,
-					})),
-				};
-				await printThermalBluetoothReceipt(payload);
-				setBtStatus("Struk tercetak via Bluetooth");
-				return;
-			} catch (err) {
-				console.warn("Bluetooth print failed, fallback to browser:", err);
-				setBtStatus("Gagal Bluetooth — pakai print browser");
-			}
-		}
-
-		// Fallback: browser print via iframe
+	function printReceipt(job: PrintJob) {
 		const iframe = printFrameRef.current;
 		if (!iframe) return;
 		const doc = iframe.contentDocument || iframe.contentWindow?.document;
@@ -651,28 +600,7 @@ function PosWorkspace({
 									))}
 								</select>
 							</FormField>
-							<div className="mb-3 flex items-center gap-2 rounded-xl bg-slate-50 px-3 py-2">
-								<span className={"inline-block h-2 w-2 rounded-full " + (btReady ? "bg-emerald-500" : bluetoothSupported() ? "bg-amber-500" : "bg-slate-300")} />
-								<span className="flex-1 text-xs text-slate-600">{btStatus}</span>
-							{!btReady && (
-								<button
-									type="button"
-									className="rounded-lg bg-cyan-500 px-3 py-1 text-xs font-bold text-white"
-									onClick={async () => {
-										if (!bluetoothSupported()) {
-											setBtStatus("Browser tidak support Bluetooth. Gunakan Chrome Android.");
-											return;
-										}
-										await autoConnectBluetoothPrinter((msg, ready) => {
-											setBtStatus(msg);
-											setBtReady(ready);
-										}, 2);
-									}}
-								>
-									Connect Printer
-								</button>
-							)}
-							</div>
+
 							<button
 								type="button"
 								disabled={cart.length === 0}
