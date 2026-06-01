@@ -69,7 +69,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/pos', [PosController::class, 'index'])->name('pos.index');
         Route::post('/pos/checkout', [PosController::class, 'store'])->name('pos.checkout');
         Route::get('/pos/sales/{sale}/receipt', [ReceiptController::class, 'show'])->name('pos.receipt');
-        Route::post('/pos/print-jobs/pull', [PosPrintJobController::class, 'pull'])->name('pos.print-jobs.pull');
+        Route::get('/pos/print-jobs/pull', [PosPrintJobController::class, 'pull'])->name('pos.print-jobs.pull');
         Route::get('/cashier-shifts', [CashierShiftController::class, 'index'])->name('cashier-shifts.index');
         Route::post('/cashier-shifts/open', [CashierShiftController::class, 'open'])->name('cashier-shifts.open');
         Route::post('/cashier-shifts/close', [CashierShiftController::class, 'close'])->name('cashier-shifts.close');
