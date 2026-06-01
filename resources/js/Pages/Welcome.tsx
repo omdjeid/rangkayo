@@ -31,8 +31,10 @@ const steps = [
 	"Mulai jualan dari POS, laporan ikut bergerak otomatis.",
 ];
 
+const APP_URL = "https://app.rangkayo.my.id";
+
 export default function Welcome({ auth }: PageProps) {
-	const dashboardHref = auth.user ? "https://app.rangkayo.my.id/dashboard" : "https://app.rangkayo.my.id/register";
+	const dashboardHref = auth.user ? `${APP_URL}/dashboard` : `${APP_URL}/register`;
 
 	return (
 		<>
@@ -59,26 +61,26 @@ export default function Welcome({ auth }: PageProps) {
 
 						<div className="flex items-center gap-2 sm:gap-3">
 							{auth.user ? (
-								<Link
-									href="https://app.rangkayo.my.id/dashboard"
+								<a
+									href={`${APP_URL}/dashboard`}
 									className="rounded-full bg-slate-950 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-slate-300 transition hover:-translate-y-0.5 hover:bg-slate-800"
 								>
 									Dashboard
-								</Link>
+								</a>
 							) : (
 								<>
-									<Link
-										href="https://app.rangkayo.my.id/login"
+									<a
+										href={`${APP_URL}/login`}
 										className="hidden rounded-full px-5 py-2.5 text-sm font-bold text-slate-600 transition hover:bg-slate-100 hover:text-slate-950 sm:inline-flex"
 									>
 										Masuk
-									</Link>
-									<Link
-										href="https://app.rangkayo.my.id/register"
+									</a>
+									<a
+										href={`${APP_URL}/register`}
 										className="rounded-full bg-slate-950 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-slate-300 transition hover:-translate-y-0.5 hover:bg-slate-800"
 									>
 										Coba sekarang
-									</Link>
+									</a>
 								</>
 							)}
 						</div>
@@ -100,12 +102,12 @@ export default function Welcome({ auth }: PageProps) {
 							</p>
 
 							<div className="mt-8 flex flex-col gap-3 sm:flex-row">
-								<Link
+								<a
 									href={dashboardHref}
 									className="rounded-full bg-slate-950 px-7 py-4 text-center text-sm font-black text-white shadow-xl shadow-slate-300 transition hover:-translate-y-0.5 hover:bg-slate-800"
 								>
 									Mulai rapikan usaha
-								</Link>
+								</a>
 								<a
 									href="#fitur"
 									className="rounded-full border border-slate-200 bg-white/80 px-7 py-4 text-center text-sm font-black text-slate-700 shadow-lg shadow-slate-200/70 backdrop-blur-xl transition hover:-translate-y-0.5 hover:bg-white hover:text-slate-950"
