@@ -54,7 +54,7 @@ const inputClass =
 function getCsrfToken(): string {
 	const meta = document.querySelector('meta[name="csrf-token"]');
 	if (meta) return meta.getAttribute("content") || "";
-	const match = document.cookie.match(/XSRF-TOKEN=***
+	const match = document.cookie.match(/XSRF-TOKEN=([^;]+)/i);
 	return match ? decodeURIComponent(match[1]) : "";
 }
 
@@ -77,7 +77,7 @@ ${job.branch?.name ? `<p style="text-align:center">${job.branch.name}</p>` : ""}
 <hr/>
 <p>No: ${job.sale_number}</p>
 <p>Tgl: ${job.sold_at}</p>
-<p>Kasir: ${job.cashier_name || "-"}</p>
+<p>Kasir: ${job.cashier || "-"}</p>
 <hr/>
 <table><thead><tr><th>Item</th><th style="text-align:right">Qty</th><th style="text-align:right">Harga</th><th style="text-align:right">Subtotal</th></tr></thead>
 <tbody>${itemsHTML}</tbody></table>
