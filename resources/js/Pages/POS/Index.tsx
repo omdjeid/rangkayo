@@ -12,7 +12,7 @@ import {
 } from "@/utils/thermalBluetoothPrinter";
 import { formatCurrency, formatNumber } from "@/utils/format";
 import { Head, Link } from "@inertiajs/react";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 interface Product {
 	id: number;
@@ -62,7 +62,7 @@ const inputClass =
 function getCsrfToken(): string {
 	const meta = document.querySelector('meta[name="csrf-token"]');
 	if (meta) return meta.getAttribute("content") || "";
-	const match = document.cookie.match(/XSRF-TOKEN=***
+	const match = document.cookie.match(/XSRF-TOKEN=([^;]+)/i);
 	return match ? decodeURIComponent(match[1]) : "";
 }
 
@@ -421,7 +421,7 @@ function PosWorkspace({
 					paid_total: job.paid_total,
 					change_total: job.change_total,
 					cashier: job.cashier ?? null,
-					branch: job.branch ?? null,
+					branch: job.branch ? { name: job.branch.name ?? null, phone: job.branch.phone ?? null, address: job.branch.address ?? null } : null,
 					items: job.items.map((i) => ({
 						product_name: i.product_name,
 						quantity: i.quantity,

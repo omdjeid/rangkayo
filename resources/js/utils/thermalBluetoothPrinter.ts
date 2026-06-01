@@ -434,7 +434,7 @@ export interface ThermalReceiptPayload {
 	paid_total: number;
 	change_total: number;
 	cashier: string | null;
-	branch: { name: string | null; phone: string | null; address: string | null };
+	branch: { name: string | null; phone: string | null; address: string | null } | null;
 	items: ThermalReceiptItem[];
 }
 
@@ -445,14 +445,14 @@ export function receiptTextFromPayload(
 	const width = receiptColumnWidth(preference);
 	const lines = [
 		centerReceiptText(payload.tenant_name, width),
-		...(payload.branch.name
+		...(payload.branch?.name
 			? [centerReceiptText(payload.branch.name, width)]
 			: []),
-		...(payload.branch.address
-			? [centerReceiptText(payload.branch.address, width)]
+		...(payload.branch?.address
+			? [centerReceiptText(payload.branch?.address, width)]
 			: []),
-		...(payload.branch.phone
-			? [centerReceiptText(`Telp: ${payload.branch.phone}`, width)]
+		...(payload.branch?.phone
+			? [centerReceiptText(`Telp: ${payload.branch?.phone}`, width)]
 			: []),
 		receiptSeparator(width),
 		fitReceiptText(payload.sale_number, width),
