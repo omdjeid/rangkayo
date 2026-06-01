@@ -35,6 +35,7 @@ use App\Http\Controllers\Tenant\PosPrintJobController;
 use App\Http\Controllers\Tenant\TelegramPosPairingController;
 use App\Http\Controllers\TenantInvitationController;
 use App\Http\Controllers\TenantSettingsController;
+use App\Http\Controllers\QrisSettingsController;
 use App\Http\Controllers\TenantSwitchController;
 use App\Http\Controllers\TenantUserController;
 use Illuminate\Foundation\Application;
@@ -108,6 +109,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/tenant-invitations', [TenantInvitationController::class, 'store'])->name('tenant-invitations.store');
         Route::get('/tenant-settings', [TenantSettingsController::class, 'edit'])->name('tenant-settings.edit');
         Route::patch('/tenant-settings', [TenantSettingsController::class, 'update'])->name('tenant-settings.update');
+        Route::get('/qris-settings', [QrisSettingsController::class, 'edit'])->name('qris-settings.edit');
+        Route::put('/qris-settings', [QrisSettingsController::class, 'update'])->name('qris-settings.update');
         Route::post('/settings/telegram-pos/pairing-code', [TelegramPosPairingController::class, 'store'])->name('tenant.settings.telegram_pos.pairing_code');
         Route::get('/print-settings', [PrintSettingsController::class, 'edit'])->name('print-settings.edit');
         Route::patch('/print-settings', [PrintSettingsController::class, 'update'])->name('print-settings.update');
