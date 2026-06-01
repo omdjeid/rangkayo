@@ -6,11 +6,13 @@ use App\Http\Middleware\EnsureTenantRole;
 use App\Http\Middleware\EnsureTenantSubscriptionActive;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\RedirectCashierToPos;
+use App\Http\Middleware\SecurityHeaders;
 use App\Support\ProductionAlert;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Request;
 use Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets;
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -24,7 +26,16 @@ return Application::configure(basePath: dirname(__DIR__))
         $schedule->command('production:monitor --alert')->everyFiveMinutes()->withoutOverlapping();
     })
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->trustProxies(
+            at: '*',
+            headers: Request::HEADER_X_FORWARDED_FOR
+                | Request::HEADER_X_FORWARDED_HOST
+                | Request::HEADER_X_FORWARDED_PORT
+                | Request::HEADER_X_FORWARDED_PROTO
+        );
+
         $middleware->web(append: [
+            SecurityHeaders::class,
             EnsureSaasDomain::class,
             HandleInertiaRequests::class,
             AddLinkHeadersForPreloadedAssets::class,

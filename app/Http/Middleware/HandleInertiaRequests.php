@@ -61,6 +61,13 @@ class HandleInertiaRequests extends Middleware
 
         return [
             ...parent::share($request),
+            'domains' => [
+                'home' => \App\Support\SaasDomains::home(),
+                'app' => \App\Support\SaasDomains::app(),
+                'pos' => \App\Support\SaasDomains::pos(),
+                'admin' => \App\Support\SaasDomains::admin(),
+                'enforce' => \App\Support\SaasDomains::enforced(),
+            ],
             'auth' => [
                 'user' => $user,
                 'workspace' => $workspace,

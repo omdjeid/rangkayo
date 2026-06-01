@@ -1,7 +1,7 @@
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
 import type { PageProps } from "@/types";
 import { formatCurrency } from "@/utils/format";
-import { Head, Link } from "@inertiajs/react";
+import { Head, Link, usePage } from "@inertiajs/react";
 
 interface DashboardProps extends Record<string, unknown> {
 	tenant: { name: string };
@@ -52,11 +52,14 @@ export default function Dashboard({
 		},
 	];
 
+	const { domains } = usePage().props as unknown as { domains: { pos: string } };
+
 	const shortcuts = [
 		{
 			label: "Buka POS",
-			href: route("pos.index"),
+			href: `${domains.pos}/pos`,
 			caption: "Buat transaksi penjualan",
+			external: true,
 		},
 		{
 			label: "Input Stok",
@@ -107,12 +110,12 @@ export default function Dashboard({
 									harian.
 								</p>
 							</div>
-							<Link
-								href={route("pos.index")}
+							<a
+								href={`${domains.pos}/pos`}
 								className="rounded-3xl bg-slate-950 px-6 py-5 text-center font-bold text-white shadow-xl shadow-slate-300 transition hover:-translate-y-0.5"
 							>
 								Buka POS
-							</Link>
+							</a>
 						</div>
 					</section>
 
@@ -134,18 +137,31 @@ export default function Dashboard({
 					</section>
 
 					<section className="grid gap-4 md:grid-cols-4">
-						{shortcuts.map((shortcut) => (
-							<Link
-								key={shortcut.label}
-								href={shortcut.href}
-								className="rounded-[1.75rem] border border-white/75 bg-white/75 p-6 shadow-xl shadow-slate-200/70 backdrop-blur-2xl transition hover:-translate-y-1"
-							>
-								<p className="font-semibold text-slate-950">{shortcut.label}</p>
-								<p className="mt-2 text-sm text-slate-500">
-									{shortcut.caption}
-								</p>
-							</Link>
-						))}
+						{shortcuts.map((shortcut) =>
+							shortcut.external ? (
+								<a
+									key={shortcut.label}
+									href={shortcut.href}
+									className="rounded-[1.75rem] border border-white/75 bg-white/75 p-6 shadow-xl shadow-slate-200/70 backdrop-blur-2xl transition hover:-translate-y-1"
+								>
+									<p className="font-semibold text-slate-950">{shortcut.label}</p>
+									<p className="mt-2 text-sm text-slate-500">
+										{shortcut.caption}
+									</p>
+								</a>
+							) : (
+								<Link
+									key={shortcut.label}
+									href={shortcut.href}
+									className="rounded-[1.75rem] border border-white/75 bg-white/75 p-6 shadow-xl shadow-slate-200/70 backdrop-blur-2xl transition hover:-translate-y-1"
+								>
+									<p className="font-semibold text-slate-950">{shortcut.label}</p>
+									<p className="mt-2 text-sm text-slate-500">
+										{shortcut.caption}
+									</p>
+								</Link>
+							)
+						)}
 					</section>
 
 					<section className="rounded-[2rem] border border-white/75 bg-white/75 p-6 shadow-xl shadow-slate-200/70 backdrop-blur-2xl">

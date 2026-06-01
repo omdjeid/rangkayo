@@ -24,6 +24,10 @@ class HealthController extends Controller
 
         $healthy = collect($checks)->every(fn (array $check): bool => $check['ok'] === true);
 
+        if (app()->environment('production')) {
+            return response()->json(['ok' => $healthy], $healthy ? 200 : 503);
+        }
+
         return response()->json([
             'ok' => $healthy,
             'app' => config('app.name'),
