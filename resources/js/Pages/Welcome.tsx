@@ -32,7 +32,7 @@ const steps = [
 ];
 
 export default function Welcome({ auth }: PageProps) {
-	const dashboardHref = auth.user ? route("dashboard") : route("register");
+	const dashboardHref = auth.user ? "https://app.rangkayo.my.id/dashboard" : "https://app.rangkayo.my.id/register";
 
 	return (
 		<>
@@ -60,7 +60,7 @@ export default function Welcome({ auth }: PageProps) {
 						<div className="flex items-center gap-2 sm:gap-3">
 							{auth.user ? (
 								<Link
-									href={route("dashboard")}
+									href="https://app.rangkayo.my.id/dashboard"
 									className="rounded-full bg-slate-950 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-slate-300 transition hover:-translate-y-0.5 hover:bg-slate-800"
 								>
 									Dashboard
@@ -68,13 +68,13 @@ export default function Welcome({ auth }: PageProps) {
 							) : (
 								<>
 									<Link
-										href={route("login")}
+										href="https://app.rangkayo.my.id/login"
 										className="hidden rounded-full px-5 py-2.5 text-sm font-bold text-slate-600 transition hover:bg-slate-100 hover:text-slate-950 sm:inline-flex"
 									>
 										Masuk
 									</Link>
 									<Link
-										href={route("register")}
+										href="https://app.rangkayo.my.id/register"
 										className="rounded-full bg-slate-950 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-slate-300 transition hover:-translate-y-0.5 hover:bg-slate-800"
 									>
 										Coba sekarang
