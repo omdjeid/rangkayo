@@ -1,7 +1,9 @@
 import FormField from "@/Components/FormField";
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
 import type { PageProps } from "@/types";
-import { Head, useForm } from "@inertiajs/react";
+import { Head, useForm, usePage } from "@inertiajs/react";
+import QRCode from "qrcode";
+import { useEffect, useState } from "react";
 
 const inputClass =
 	"w-full rounded-2xl border-slate-200 bg-white/80 shadow-sm focus:border-cyan-400 focus:ring-cyan-400";
@@ -16,12 +18,32 @@ export default function QrisSettingsEdit({
 		status: string;
 	};
 }>) {
+	const { flash } = usePage().props as unknown as {
+		flash?: { success?: string };
+	};
+
 	const form = useForm({
 		merchant_name: qris.merchant_name,
 		manual_qris_string: qris.manual_qris_string,
 		image_url: qris.image_url,
 		status: qris.status,
 	});
+
+	const [qrDataUrl, setQrDataUrl] = useState("");
+
+	useEffect(() => {
+		if (form.data.manual_qris_string) {
+			QRCode.toDataURL(form.data.manual_qris_string, {
+				width: 256,
+				margin: 2,
+				color: { dark: "#000000", light: "#ffffff" },
+			})
+				.then(setQrDataUrl)
+				.catch(() => setQrDataUrl(""));
+		} else {
+			setQrDataUrl("");
+		}
+	}, [form.data.manual_qris_string]);
 
 	return (
 		<AuthenticatedLayout
@@ -37,6 +59,12 @@ export default function QrisSettingsEdit({
 			<Head title="Pengaturan QRIS" />
 			<div className="min-h-[calc(100vh-9rem)] bg-gradient-to-b from-slate-50 to-cyan-50/50 py-8">
 				<div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
+					{flash?.success && (
+						<div className="mb-6 rounded-2xl bg-emerald-50 border border-emerald-200 px-4 py-3 text-sm font-semibold text-emerald-800">
+							{flash.success}
+						</div>
+					)}
+
 					<form
 						onSubmit={(e) => {
 							e.preventDefault();
@@ -123,8 +151,15 @@ export default function QrisSettingsEdit({
 											{form.data.merchant_name}
 										</p>
 									)}
+									{qrDataUrl && (
+										<img
+											src={qrDataUrl}
+											alt="QRIS QR Code"
+											className="mx-auto mb-3"
+										/>
+									)}
 									<p className="text-xs text-slate-500 mb-3">
-										Scan QRIS di bawah oleh pelanggan
+										Scan QRIS di atas oleh pelanggan
 									</p>
 									<textarea
 										readOnly
