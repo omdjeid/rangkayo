@@ -36,17 +36,16 @@ interface QrisConfig {
 }
 
 interface PrintJob {
-	id: number;
+	id: string;
 	sale_number: string;
-	items: { name: string; quantity: number; price: number; subtotal: number }[];
+	items: { product_name: string; quantity: number; unit_price: number; line_total: number }[];
 	grand_total: number;
 	paid_total: number;
-	change: number;
+	change_total: number;
 	payment_method: string;
 	sold_at: string;
-	branch_name?: string;
-	warehouse_name?: string;
-	cashier_name?: string;
+	branch?: { name?: string; code?: string; phone?: string; address?: string };
+	cashier?: string;
 }
 
 const inputClass =
@@ -55,7 +54,7 @@ const inputClass =
 function getCsrfToken(): string {
 	const meta = document.querySelector('meta[name="csrf-token"]');
 	if (meta) return meta.getAttribute("content") || "";
-	const match = document.cookie.match(/XSRF-TOKEN=([^;]+)/);
+	const match = document.cookie.match(/XSRF-TOKEN=***
 	return match ? decodeURIComponent(match[1]) : "";
 }
 
@@ -64,7 +63,7 @@ function renderReceiptHTML(job: PrintJob): string {
 	const itemsHTML = (job.items || [])
 		.map(
 			(i) =>
-				`<tr><td>${i.name}</td><td style="text-align:right">${i.quantity}</td><td style="text-align:right">${formatCurrency(i.price)}</td><td style="text-align:right">${formatCurrency(i.subtotal)}</td></tr>`,
+				`<tr><td>${i.product_name}</td><td style="text-align:right">${i.quantity}</td><td style="text-align:right">${formatCurrency(i.unit_price)}</td><td style="text-align:right">${formatCurrency(i.line_total)}</td></tr>`,
 		)
 		.join("");
 	return `<!DOCTYPE html><html><head><style>
@@ -74,7 +73,7 @@ hr{border:none;border-top:1px dashed #000;margin:8px 0}
 .total-line{display:flex;justify-content:space-between;font-weight:bold;font-size:13px}
 </style></head><body>
 <h3>STRUK PEMBAYARAN</h3>
-${job.branch_name ? `<p style="text-align:center">${job.branch_name}${job.warehouse_name ? " · " + job.warehouse_name : ""}</p>` : ""}
+${job.branch?.name ? `<p style="text-align:center">${job.branch.name}</p>` : ""}
 <hr/>
 <p>No: ${job.sale_number}</p>
 <p>Tgl: ${job.sold_at}</p>
@@ -85,7 +84,7 @@ ${job.branch_name ? `<p style="text-align:center">${job.branch_name}${job.wareho
 <hr/>
 <div class="total-line"><span>Total</span><span>${formatCurrency(job.grand_total)}</span></div>
 <div class="total-line"><span>Bayar (${job.payment_method})</span><span>${formatCurrency(job.paid_total)}</span></div>
-<div class="total-line"><span>Kembali</span><span>${formatCurrency(job.change)}</span></div>
+<div class="total-line"><span>Kembali</span><span>${formatCurrency(job.change_total)}</span></div>
 <hr/>
 <p style="text-align:center">Terima kasih!</p>
 </body></html>`;
