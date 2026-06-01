@@ -22,8 +22,18 @@ interface TenantSettings {
 
 export default function TenantSettingsEdit({
 	tenant,
-}: PageProps<{ tenant: TenantSettings }>) {
+	qris,
+}: PageProps<{ tenant: TenantSettings; qris: { merchant_name: string; manual_qris_string: string; image_url: string; status: string } }>) {
 	const form = useForm({ ...tenant });
+
+	const qrisForm = useForm({
+		qris: {
+			merchant_name: qris.merchant_name,
+			manual_qris_string: qris.manual_qris_string,
+			image_url: qris.image_url,
+			status: qris.status,
+		},
+	});
 
 	return (
 		<AuthenticatedLayout
@@ -54,7 +64,7 @@ export default function TenantSettingsEdit({
 									Profil usaha
 								</p>
 								<h3 className="mt-2 text-lg font-bold text-slate-950">
-									Identitas & default transaksi
+									Identitas &amp; default transaksi
 								</h3>
 								<p className="mt-1 text-sm text-slate-500">
 									Data ini dipakai untuk dokumen invoice, struk, dan default
@@ -175,6 +185,32 @@ export default function TenantSettingsEdit({
 									/>
 								</FormField>
 							</div>
+						</section>
+
+						<section className="rounded-[2rem] border border-white/80 bg-white/70 p-5 shadow-sm">
+							<div className="mb-4">
+								<h3 className="text-lg font-bold text-slate-950">Pembayaran QRIS</h3>
+								<p className="text-sm text-slate-500">Konfigurasi QRIS untuk pembayaran di POS.</p>
+							</div>
+							<form onSubmit={(e) => { e.preventDefault(); qrisForm.patch(route("tenant-settings.update"), { preserveScroll: true }); }} className="space-y-4">
+								<FormField label="Nama Merchant">
+									<input type="text" value={qrisForm.data.qris.merchant_name} onChange={(e) => qrisForm.setData("qris.merchant_name", e.target.value)} className={inputClass} placeholder="Nama toko/merchant" />
+								</FormField>
+								<FormField label="QRIS String" hint="Paste EMVCo QRIS string dari payment gateway atau QRIS statis.">
+									<textarea value={qrisForm.data.qris.manual_qris_string} onChange={(e) => qrisForm.setData("qris.manual_qris_string", e.target.value)} className={inputClass} rows={3} placeholder="000201010211..." />
+								</FormField>
+								<FormField label="Status">
+									<select value={qrisForm.data.qris.status} onChange={(e) => qrisForm.setData("qris.status", e.target.value)} className={inputClass}>
+										<option value="active">Aktif</option>
+										<option value="">Nonaktif</option>
+									</select>
+								</FormField>
+								<div className="flex justify-end">
+									<button disabled={qrisForm.processing} className="rounded-2xl bg-cyan-500 px-5 py-2 font-semibold text-white shadow-lg disabled:opacity-60">
+										Simpan QRIS
+									</button>
+								</div>
+							</form>
 						</section>
 
 						<div className="sticky bottom-4 flex justify-end">
