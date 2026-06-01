@@ -121,7 +121,7 @@ function PaymentModal({
 		setProcessing(true);
 
 		const paidTotal = paymentMethod === "cash" ? effectiveCash : total;
-		const backendMethod = paymentMethod === "cash" ? "cash" : "bank";
+		const backendMethod = paymentMethod === "cash" ? "cash" : paymentMethod === "qris" ? "qris" : "bank";
 		const csrfToken = getCsrfToken();
 
 		try {
