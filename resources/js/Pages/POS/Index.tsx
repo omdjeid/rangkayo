@@ -652,6 +652,26 @@ function PosWorkspace({
 								</select>
 							</FormField>
 
+{bluetoothSupported() && (
+								<div className="mb-3 flex items-center gap-2 rounded-xl bg-slate-50 px-3 py-2">
+									<span className={"inline-block h-2 w-2 rounded-full " + (btReady ? "bg-emerald-500" : "bg-amber-500")} />
+									<span className="flex-1 text-xs text-slate-600">{btStatus}</span>
+									{!btReady && (
+										<button
+											type="button"
+											className="rounded-lg bg-cyan-500 px-3 py-1 text-xs font-bold text-white"
+											onClick={async () => {
+												await autoConnectBluetoothPrinter((msg, ready) => {
+													setBtStatus(msg);
+													setBtReady(ready);
+												}, 2);
+											}}
+										>
+											Connect
+										</button>
+									)}
+								</div>
+							)}
 							<button
 								type="button"
 								disabled={cart.length === 0}
