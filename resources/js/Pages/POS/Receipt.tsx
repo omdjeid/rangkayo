@@ -11,6 +11,14 @@ import {
 	testThermalBluetoothPrinter,
 	type ThermalReceiptPayload,
 } from "@/utils/thermalBluetoothPrinter";
+
+import {
+	autoConnectSerialPrinter,
+	connectSerialPrinter,
+	printThermalSerial,
+	serialConnected,
+	serialSupported,
+} from "@/utils/usbSerialPrinter";
 import { Head, Link } from "@inertiajs/react";
 import { useEffect, useMemo, useState } from "react";
 
@@ -61,6 +69,13 @@ export default function Receipt({
 	);
 	const [bluetoothReady, setBluetoothReady] = useState(false);
 	const [bluetoothBusy, setBluetoothBusy] = useState(false);
+		const [serialStatus, setSerialStatus] = useState(
+		serialSupported()
+			? "USB Serial tersedia"
+			: "USB Serial tidak didukung"
+	);
+	const [serialReady, setSerialReady] = useState(false);
+
 	const thermalPayload = useMemo<ThermalReceiptPayload>(
 		() => ({
 			tenant_name: tenant.name,
@@ -91,6 +106,19 @@ export default function Receipt({
 
 			return undefined;
 		}
+			if (printPreference.connection === "serial") {
+				async function initSerial() {
+					const connected = await autoConnectSerialPrinter();
+					setSerialReady(connected);
+					setSerialStatus(connected ? "USB Serial terhubung" : "Perlu connect manual");
+					if (printPreference.auto_print && connected) {
+						window.setTimeout(() => printSerialReceipt(), 500);
+					}
+				}
+				void initSerial();
+				return undefined;
+			}
+
 
 		void autoConnectBluetoothPrinter((message, ready) => {
 			setBluetoothStatus(message);
@@ -172,6 +200,45 @@ export default function Receipt({
 			);
 		} finally {
 			setBluetoothBusy(false);
+		}
+	}
+
+	async function printSerialReceipt() {
+		setSerialStatus('Mengirim struk...');
+		try {
+			const payload = {
+				tenant_name: tenant.name,
+				sale_number: sale.sale_number,
+				sold_at: sale.sold_at,
+				payment_method: sale.payment_method,
+				subtotal: sale.subtotal,
+				grand_total: sale.grand_total,
+				paid_total: sale.paid_total,
+				change_total: sale.change_total,
+				cashier: sale.cashier ?? null,
+				branch: sale.branch || null,
+				items: sale.items.map((i) => ({
+					product_name: i.product_name,
+					quantity: i.quantity,
+					unit_price: i.unit_price,
+					line_total: i.line_total,
+				})),
+			};
+			await printThermalSerial(payload);
+			setSerialStatus('Struk tercetak!');
+		} catch (err) {
+			setSerialStatus('Gagal: ' + (err instanceof Error ? err.message : 'Unknown error'));
+		}
+	}
+
+	async function connectSerial() {
+		try {
+			const ok = await connectSerialPrinter();
+			setSerialReady(ok);
+			setSerialStatus(ok ? 'USB Serial terhubung' : 'Gagal connect');
+		} catch (err) {
+			setSerialReady(false);
+			setSerialStatus(err instanceof Error ? err.message : 'Gagal connect serial');
 		}
 	}
 
