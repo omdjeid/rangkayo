@@ -250,9 +250,9 @@ export default function POS({
 					</div>
 				)}
 
-				<div className="mx-auto grid max-w-7xl gap-6 px-4 sm:px-6 lg:grid-cols-[1.4fr_0.9fr] lg:px-8">
+				<div className="mx-auto grid max-w-7xl gap-4 px-3 sm:px-4 md:gap-6 md:px-6 lg:grid-cols-[1.4fr_0.9fr] lg:px-8">
 					{/* Products */}
-					<section className="rounded-[2rem] border border-white/80 bg-white/70 p-5 shadow-xl shadow-slate-200/70 backdrop-blur-2xl">
+					<section className="rounded-2xl border border-white/80 bg-white/70 p-3 sm:rounded-[2rem] sm:p-5 shadow-xl shadow-slate-200/70 backdrop-blur-2xl">
 						<div className="mb-4 flex items-center justify-between">
 							<div>
 								<p className="text-xs font-bold uppercase tracking-widest text-cyan-600">
@@ -282,13 +282,13 @@ export default function POS({
 							</div>
 						)}
 
-						<div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+						<div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-3">
 							{products.map((product) => (
 								<button
 									key={product.id}
 									type="button"
 									onClick={() => addToCart(product)}
-									className="rounded-[1.5rem] border border-slate-100 bg-white/80 p-4 text-left shadow-md shadow-slate-200/60 transition hover:-translate-y-1 hover:shadow-lg disabled:opacity-50"
+									className="rounded-xl border border-slate-100 bg-white/80 p-3 text-left sm:rounded-[1.5rem] sm:p-4 shadow-md shadow-slate-200/60 transition hover:-translate-y-1 hover:shadow-lg disabled:opacity-50"
 									disabled={product.stock <= 0}
 								>
 									<p className="font-bold text-slate-950">{product.name}</p>
@@ -314,7 +314,7 @@ export default function POS({
 
 					{/* Cart & Payment */}
 					<div className="flex flex-col gap-5">
-						<section className="rounded-[2rem] border border-white/80 bg-white/75 p-5 shadow-xl shadow-slate-200/70 backdrop-blur-2xl">
+						<section className="rounded-2xl border border-white/80 bg-white/75 p-3 sm:rounded-[2rem] sm:p-5 shadow-xl shadow-slate-200/70 backdrop-blur-2xl">
 							<p className="text-xs font-bold uppercase tracking-widest text-cyan-600">
 								Pembayaran
 							</p>
@@ -449,7 +449,7 @@ export default function POS({
 						</section>
 
 						{/* Recent Sales */}
-						<section className="rounded-[2rem] border border-white/80 bg-white/75 p-6 shadow-xl shadow-slate-200/70 backdrop-blur-2xl">
+						<section className="rounded-2xl border border-white/80 bg-white/75 p-4 sm:rounded-[2rem] sm:p-6 shadow-xl shadow-slate-200/70 backdrop-blur-2xl">
 							<h3 className="text-lg font-semibold text-slate-950">
 								Transaksi Terakhir Cabang Ini
 							</h3>
@@ -484,8 +484,8 @@ export default function POS({
 
 				{/* Payment Modal */}
 				{showPayment && (
-					<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-						<div className="w-full max-w-lg rounded-3xl border border-white/60 bg-white p-6 shadow-2xl">
+					<div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 backdrop-blur-sm sm:items-center sm:p-4">
+						<div className="w-full max-w-lg rounded-t-3xl border border-white/60 bg-white p-4 shadow-2xl sm:rounded-3xl sm:p-6">
 							<div className="flex items-center justify-between">
 								<h3 className="text-xl font-bold text-slate-950">Pembayaran</h3>
 								<button
