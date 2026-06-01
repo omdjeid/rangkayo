@@ -14,6 +14,7 @@ import { formatCurrency, formatNumber } from "@/utils/format";
 import { Head, Link } from "@inertiajs/react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import QRCode from "qrcode";
+import { buildManualQrisPayload } from "@/utils/qris";
 
 interface Product {
 	id: number;
@@ -123,8 +124,10 @@ function PaymentModal({
 
 	/* Generate QR code image from QRIS string when modal opens */
 	useEffect(() => {
-		if (paymentMethod === "qris" && qris?.qris_string) {
-			QRCode.toDataURL(qris.qris_string, {
+		if (paymentMethod === "qris" && qris?.qris_string && total > 0) {
+			const payload = buildManualQrisPayload(qris.qris_string, total);
+			const toEncode = payload || qris.qris_string;
+			QRCode.toDataURL(toEncode, {
 				width: 280,
 				margin: 2,
 				color: { dark: "#000000", light: "#ffffff" },
