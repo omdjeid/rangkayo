@@ -2,6 +2,14 @@ import ApplicationLogo from "@/Components/ApplicationLogo";
 import FormField from "@/Components/FormField";
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
 import type { PageProps, WarehouseOption } from "@/types";
+import {
+	autoConnectBluetoothPrinter,
+	bluetoothSupported,
+	printThermalBluetoothReceipt,
+	receiptTextFromPayload,
+	savedBluetoothPrinter,
+	type ThermalReceiptPayload,
+} from "@/utils/thermalBluetoothPrinter";
 import { formatCurrency, formatNumber } from "@/utils/format";
 import { Head, Link } from "@inertiajs/react";
 import { useMemo, useRef, useState } from "react";
@@ -54,7 +62,7 @@ const inputClass =
 function getCsrfToken(): string {
 	const meta = document.querySelector('meta[name="csrf-token"]');
 	if (meta) return meta.getAttribute("content") || "";
-	const match = document.cookie.match(/XSRF-TOKEN=([^;]+)/i);
+	const match = document.cookie.match(/XSRF-TOKEN=***
 	return match ? decodeURIComponent(match[1]) : "";
 }
 
@@ -317,6 +325,14 @@ function PosWorkspace({
 }) {
 	const [cart, setCart] = useState<CartItem[]>([]);
 	const [showPayment, setShowPayment] = useState(false);
+	const [btStatus, setBtStatus] = useState(
+		bluetoothSupported()
+			? savedBluetoothPrinter()
+				? "Printer tersimpan siap"
+				: "Bluetooth tersedia — belum connect"
+			: "Bluetooth tidak didukung browser ini",
+	);
+	const [btReady, setBtReady] = useState(false);
 	const [toast, setToast] = useState<string | null>(null);
 	const [selectedWarehouse] = useState(warehouse.id.toString());
 	const printFrameRef = useRef<HTMLIFrameElement | null>(null);
@@ -356,6 +372,15 @@ function PosWorkspace({
 		setTimeout(() => setToast(null), 4000);
 	}
 
+	/* Auto-connect Bluetooth printer on mount */
+	useEffect(() => {
+		if (!bluetoothSupported()) return;
+		autoConnectBluetoothPrinter((msg, ready) => {
+			setBtStatus(msg);
+			setBtReady(ready);
+		}, 2);
+	}, []);
+
 	/* Poll for print jobs after successful checkout */
 	async function pollPrintJobs() {
 		const maxAttempts = 10; // 10 x 1.5s = 15s
@@ -382,7 +407,38 @@ function PosWorkspace({
 		}
 	}
 
-	function printReceipt(job: PrintJob) {
+	async function printReceipt(job: PrintJob) {
+		// Try thermal Bluetooth printer first
+		if (btReady && bluetoothSupported()) {
+			try {
+				const payload: ThermalReceiptPayload = {
+					tenant_name: "RangKayo",
+					sale_number: job.sale_number,
+					sold_at: job.sold_at,
+					payment_method: job.payment_method,
+					subtotal: job.items.reduce((s, i) => s + i.line_total, 0),
+					grand_total: job.grand_total,
+					paid_total: job.paid_total,
+					change_total: job.change_total,
+					cashier: job.cashier ?? null,
+					branch: job.branch ?? null,
+					items: job.items.map((i) => ({
+						product_name: i.product_name,
+						quantity: i.quantity,
+						unit_price: i.unit_price,
+						line_total: i.line_total,
+					})),
+				};
+				await printThermalBluetoothReceipt(payload);
+				setBtStatus("Struk tercetak via Bluetooth");
+				return;
+			} catch (err) {
+				console.warn("Bluetooth print failed, fallback to browser:", err);
+				setBtStatus("Gagal Bluetooth — pakai print browser");
+			}
+		}
+
+		// Fallback: browser print via iframe
 		const iframe = printFrameRef.current;
 		if (!iframe) return;
 		const doc = iframe.contentDocument || iframe.contentWindow?.document;
