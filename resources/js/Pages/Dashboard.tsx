@@ -52,12 +52,12 @@ export default function Dashboard({
 		},
 	];
 
-	const { domains } = usePage().props as unknown as { domains: { pos: string } };
+	const { domains } = usePage().props as unknown as { domains: { pos: string; app: string } };
 
 	const shortcuts = [
 		{
 			label: "Buka POS",
-			href: `${domains.pos}/pos`,
+			href: `https://${domains.pos}/pos`,
 			caption: "Buat transaksi penjualan",
 			external: true,
 		},
@@ -111,7 +111,7 @@ export default function Dashboard({
 								</p>
 							</div>
 							<a
-								href={`${domains.pos}/pos`}
+								href={`https://${domains.pos}/pos`}
 								className="rounded-3xl bg-slate-950 px-6 py-5 text-center font-bold text-white shadow-xl shadow-slate-300 transition hover:-translate-y-0.5"
 							>
 								Buka POS
