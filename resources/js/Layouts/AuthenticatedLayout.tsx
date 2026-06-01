@@ -27,6 +27,7 @@ type NavigationItem = {
 	name: string;
 	href: string;
 	roles: NavigationRole[];
+	external?: boolean;
 };
 
 type NavigationGroup = {
@@ -260,22 +261,26 @@ function SidebarLink({
 	onClick?: () => void;
 }) {
 	const active = route().current(item.href);
+	const baseClass = "group flex items-center justify-between rounded-2xl px-4 py-3 text-sm font-semibold transition " +
+		(active ? "bg-slate-950 text-white shadow-lg shadow-slate-300" : "text-slate-600 hover:bg-white/80 hover:text-slate-950");
+
+	if (item.external) {
+		const externalHref = route(item.href).replace(/^https?:\/\/[^/]+/, (m) => m.replace("app.", "pos."));
+		return (
+			<a href={externalHref} onClick={onClick} className={baseClass}>
+				<span>{item.name}</span>
+			</a>
+		);
+	}
 
 	return (
-		<Link
-			href={route(item.href)}
-			onClick={onClick}
-			className={`group flex items-center justify-between rounded-2xl px-4 py-3 text-sm font-semibold transition ${
-				active
-					? "bg-slate-950 text-white shadow-lg shadow-slate-300"
-					: "text-slate-600 hover:bg-white/80 hover:text-slate-950"
-			}`}
-		>
+		<Link href={route(item.href)} onClick={onClick} className={baseClass}>
 			<span>{item.name}</span>
 			{active && <span className="h-2 w-2 rounded-full bg-cyan-300" />}
 		</Link>
 	);
 }
+
 
 function SidebarGroup({
 	group,
