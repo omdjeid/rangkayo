@@ -69,14 +69,11 @@ export default function Receipt({
 	);
 	const [bluetoothReady, setBluetoothReady] = useState(false);
 	const [bluetoothBusy, setBluetoothBusy] = useState(false);
-		const [serialStatus, setSerialStatus] = useState(
-		serialSupported()
-			? "USB Serial tersedia"
-			: "USB Serial tidak didukung"
-	);
-	const [serialReady, setSerialReady] = useState(false);
 
-	const thermalPayload = useMemo<ThermalReceiptPayload>(
+	const [serialStatus, setSerialStatus] = useState(
+		serialSupported() ? "USB. Serial tersedia" : "USB Serial tidak didukung"
+	);
+	const [serialReady, setSerialReady] = useState(false);	const thermalPayload = useMemo<ThermalReceiptPayload>(
 		() => ({
 			tenant_name: tenant.name,
 			sale_number: sale.sale_number,
@@ -106,34 +103,26 @@ export default function Receipt({
 
 			return undefined;
 		}
-			if (printPreference.connection === "serial") {
-				async function initSerial() {
-					const connected = await autoConnectSerialPrinter();
-					setSerialReady(connected);
-					setSerialStatus(connected ? "USB Serial terhubung" : "Perlu connect manual");
-					if (printPreference.auto_print && connected) {
-						window.setTimeout(() => printSerialReceipt(), 500);
-					}
-				}
-				void initSerial();
-				return undefined;
-			}
 
+		if (printPreference.connection === "serial") {
+			void autoConnectSerialPrinter().then((ok) => {
+				setSerialReady(ok);
+				setSerialStatus(ok ? "USB Serial terhubung" : "Perlu connect manual");
+				if (printPreference.auto_print && ok) {
+					window.setTimeout(() => void printSerialReceipt(), 500);
+				}
+			});
+			return undefined;
+		}
 
 		void autoConnectBluetoothPrinter((message, ready) => {
 			setBluetoothStatus(message);
 			setBluetoothReady(ready);
-		}, 2).catch(() => {
-			setBluetoothStatus("Bluetooth gagal — pakai Browser Print");
-			setBluetoothReady(false);
-			if (printPreference.auto_print) {
-				window.setTimeout(() => window.print(), 500);
-			}
-		});
-		if (printPreference.auto_print && printPreference.connection === "bluetooth") {
+		}, 2);
+		if (printPreference.auto_print) {
 			window.setTimeout(() => {
-				if (bluetoothReady) void printBluetoothReceipt();
-			}, 1000);
+				void printBluetoothReceipt();
+			}, 500);
 		}
 
 		const reconnect = () => {
@@ -184,6 +173,11 @@ export default function Receipt({
 			return;
 		}
 
+		if (printPreference.connection === "serial") {
+			await printSerialReceipt();
+			return;
+		}
+
 		window.print();
 	}
 
@@ -208,7 +202,6 @@ export default function Receipt({
 			setBluetoothBusy(false);
 		}
 	}
-
 	async function printSerialReceipt() {
 		setSerialStatus('Mengirim struk...');
 		try {
@@ -221,7 +214,7 @@ export default function Receipt({
 				grand_total: sale.grand_total,
 				paid_total: sale.paid_total,
 				change_total: sale.change_total,
-				cashier: sale.cashier ?? null,
+				cashier: sale.cashier || null,
 				branch: sale.branch || null,
 				items: sale.items.map((i) => ({
 					product_name: i.product_name,
@@ -233,7 +226,7 @@ export default function Receipt({
 			await printThermalSerial(payload);
 			setSerialStatus('Struk tercetak!');
 		} catch (err) {
-			setSerialStatus('Gagal: ' + (err instanceof Error ? err.message : 'Unknown error'));
+			setSerialStatus('Gagal: ' + (err instanceof Error ? err.message : 'Unknown'));
 		}
 	}
 
@@ -247,6 +240,7 @@ export default function Receipt({
 			setSerialStatus(err instanceof Error ? err.message : 'Gagal connect serial');
 		}
 	}
+
 
 	return (
 		<main className="min-h-screen bg-slate-100 px-4 py-8 text-slate-950 print:bg-white print:p-0">
