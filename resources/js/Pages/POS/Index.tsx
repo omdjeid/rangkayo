@@ -4,7 +4,9 @@ import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
 import type { PageProps, WarehouseOption } from "@/types";
 import { formatCurrency, formatNumber } from "@/utils/format";
 import { Head, Link } from "@inertiajs/react";
-import { useMemo, useRef, useState } from "react";
+import QRCode from "qrcode";
+import { buildManualQrisPayload } from "@/utils/qris";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 interface Product {
 	id: number;
@@ -111,6 +113,24 @@ function PaymentModal({
 	const [cashAmount, setCashAmount] = useState("");
 	const [processing, setProcessing] = useState(false);
 	const [copied, setCopied] = useState(false);
+	const [qrDataUrl, setQrDataUrl] = useState("");
+
+	/* Generate QR code image from QRIS string when modal opens */
+	useEffect(() => {
+		if (paymentMethod === "qris" && qris?.qris_string && total > 0) {
+			const payload = buildManualQrisPayload(qris.qris_string, total);
+			const toEncode = payload || qris.qris_string;
+			QRCode.toDataURL(toEncode, {
+				width: 280,
+				margin: 2,
+				color: { dark: "#000000", light: "#ffffff" },
+			})
+				.then(setQrDataUrl)
+				.catch(() => setQrDataUrl(""));
+		} else {
+			setQrDataUrl("");
+		}
+	}, [paymentMethod, qris?.qris_string, total]);
 
 	const effectiveCash = paymentMethod === "cash" ? Number(cashAmount) || total : total;
 	const change = paymentMethod === "cash" ? Math.max(0, effectiveCash - total) : 0;
@@ -243,31 +263,44 @@ function PaymentModal({
 					<div className="mt-4 space-y-3">
 						{qris?.qris_string ? (
 							<>
-								<div className="relative">
-									<textarea
-										readOnly
-										className="w-full rounded-2xl border-slate-200 bg-white p-3 font-mono text-xs shadow-sm"
-										rows={4}
-										value={qris.qris_string}
-									/>
-									<button
-										type="button"
-										onClick={() => {
-											navigator.clipboard.writeText(qris.qris_string || "");
-											setCopied(true);
-											setTimeout(() => setCopied(false), 2000);
-										}}
-										className="absolute right-2 top-2 rounded-xl bg-cyan-100 px-3 py-1 text-xs font-bold text-cyan-700 transition hover:bg-cyan-200"
-									>
-										{copied ? "Tersalin!" : "Salin"}
-									</button>
+								{/* QR Code Card */}
+								<div className="rounded-2xl bg-white border border-slate-200 p-5 text-center shadow-sm">
+									{qris.merchant_name && (
+										<p className="text-base font-bold text-slate-900 mb-1">{qris.merchant_name}</p>
+									)}
+									<p className="text-2xl font-bold text-cyan-700 mb-4">{formatCurrency(total)}</p>
+									{qrDataUrl ? (
+										<img
+											src={qrDataUrl}
+											alt="QRIS QR Code"
+											className="mx-auto rounded-lg"
+											width={280}
+											height={280}
+										/>
+									) : (
+										<div className="flex items-center justify-center h-[280px] w-[280px] mx-auto rounded-lg bg-slate-50">
+											<p className="text-sm text-slate-400 animate-pulse">Generating QR...</p>
+										</div>
+									)}
 								</div>
-								{qris.merchant_name && (
-									<p className="text-sm text-slate-500">Merchant: {qris.merchant_name}</p>
-								)}
-								<div className="rounded-2xl bg-amber-50 p-3 text-sm font-semibold text-amber-700">
+
+								{/* Instruction banner */}
+								<div className="rounded-2xl bg-emerald-50 border border-emerald-200 p-3 text-sm font-semibold text-emerald-700 text-center">
 									📱 Scan QRIS di atas oleh pelanggan
 								</div>
+
+								{/* Fallback copy button */}
+								<button
+									type="button"
+									onClick={() => {
+										navigator.clipboard.writeText(qris.qris_string || "");
+										setCopied(true);
+										setTimeout(() => setCopied(false), 2000);
+									}}
+									className="w-full rounded-2xl bg-slate-100 border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-200"
+								>
+									{copied ? "✓ Tersalin!" : "📋 Salin QRIS String"}
+								</button>
 							</>
 						) : (
 							<div className="rounded-2xl bg-slate-100 p-4 text-sm text-slate-500">
