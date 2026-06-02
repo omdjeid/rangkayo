@@ -224,7 +224,7 @@ async function findWritableCharacteristic(server: BluetoothRemoteGATTServer) {
 	throw new Error("Printer ditemukan, tapi channel tulis tidak tersedia.");
 }
 
-export async function connectBluetoothPrinter(allowPicker = true) {
+async function connectBluetoothInner(allowPicker: boolean) {
 	if (!navigator.bluetooth) {
 		throw new Error("Browser tidak mendukung Web Bluetooth.");
 	}
@@ -543,6 +543,19 @@ export async function printThermalBluetoothReceipt(
 	await writeBluetoothChunks(characteristic, receiptBytes(receiptText));
 }
 
+export async function connectBluetoothPrinter(allowPicker = true) {
+	const btTimeout = new Promise<never>((_, reject) =>
+		setTimeout(() => reject(new Error("Bluetooth timeout")), 30000)
+	);
+	try {
+		return await Promise.race([connectBluetoothInner(allowPicker), btTimeout]);
+	} catch (err) {
+		bluetoothDevice = null;
+		bluetoothServer = null;
+		bluetoothCharacteristic = null;
+		throw err;
+	}
+}
 export async function testThermalBluetoothPrinter() {
 	const characteristic = await connectBluetoothPrinter(true);
 	await writeBluetoothChunks(

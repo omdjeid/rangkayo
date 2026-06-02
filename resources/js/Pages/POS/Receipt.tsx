@@ -123,11 +123,17 @@ export default function Receipt({
 		void autoConnectBluetoothPrinter((message, ready) => {
 			setBluetoothStatus(message);
 			setBluetoothReady(ready);
-		}, 2);
-		if (printPreference.auto_print) {
+		}, 2).catch(() => {
+			setBluetoothStatus("Bluetooth gagal — pakai Browser Print");
+			setBluetoothReady(false);
+			if (printPreference.auto_print) {
+				window.setTimeout(() => window.print(), 500);
+			}
+		});
+		if (printPreference.auto_print && printPreference.connection === "bluetooth") {
 			window.setTimeout(() => {
-				void printBluetoothReceipt();
-			}, 500);
+				if (bluetoothReady) void printBluetoothReceipt();
+			}, 1000);
 		}
 
 		const reconnect = () => {
