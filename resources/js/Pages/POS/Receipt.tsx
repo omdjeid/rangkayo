@@ -88,10 +88,13 @@ export default function Receipt({
 			return undefined;
 		}
 
-		void autoConnectBluetoothPrinter((message, ready) => {
+		autoConnectBluetoothPrinter((message, ready) => {
 			setBluetoothStatus(message);
 			setBluetoothReady(ready);
-		}, 2);
+		}, 2).catch(() => {
+			setBluetoothStatus(Gagal reconnect — klik Connect manual);
+			setBluetoothReady(false);
+		});
 		const reconnect = () => {
 			if (document.visibilityState === "hidden") return;
 
