@@ -37,19 +37,6 @@ interface QrisConfig {
 	status?: string;
 }
 
-interface PrintJob {
-	id: number;
-	sale_number: string;
-	items: { name: string; quantity: number; price: number; subtotal: number }[];
-	grand_total: number;
-	paid_total: number;
-	change: number;
-	payment_method: string;
-	sold_at: string;
-	branch_name?: string;
-	warehouse_name?: string;
-	cashier_name?: string;
-}
 
 const inputClass =
 	"w-full rounded-2xl border-slate-200 bg-white/80 shadow-sm focus:border-cyan-400 focus:ring-cyan-400";
@@ -62,36 +49,6 @@ function getCsrfToken(): string {
 }
 
 /* ─── Receipt renderer (used for auto-print) ─── */
-function renderReceiptHTML(job: PrintJob): string {
-	const itemsHTML = (job.items || [])
-		.map(
-			(i) =>
-				`<tr><td>${i.name}</td><td style="text-align:right">${i.quantity}</td><td style="text-align:right">${formatCurrency(i.price)}</td><td style="text-align:right">${formatCurrency(i.subtotal)}</td></tr>`,
-		)
-		.join("");
-	return `<!DOCTYPE html><html><head><style>
-body{font-family:monospace;font-size:12px;width:80mm;margin:0;padding:8px}
-h3{text-align:center;margin:4px 0}table{width:100%;border-collapse:collapse}td{padding:2px 0}
-hr{border:none;border-top:1px dashed #000;margin:8px 0}
-.total-line{display:flex;justify-content:space-between;font-weight:bold;font-size:13px}
-</style></head><body>
-<h3>STRUK PEMBAYARAN</h3>
-${job.branch_name ? `<p style="text-align:center">${job.branch_name}${job.warehouse_name ? " · " + job.warehouse_name : ""}</p>` : ""}
-<hr/>
-<p>No: ${job.sale_number}</p>
-<p>Tgl: ${job.sold_at}</p>
-<p>Kasir: ${job.cashier_name || "-"}</p>
-<hr/>
-<table><thead><tr><th>Item</th><th style="text-align:right">Qty</th><th style="text-align:right">Harga</th><th style="text-align:right">Subtotal</th></tr></thead>
-<tbody>${itemsHTML}</tbody></table>
-<hr/>
-<div class="total-line"><span>Total</span><span>${formatCurrency(job.grand_total)}</span></div>
-<div class="total-line"><span>Bayar (${job.payment_method})</span><span>${formatCurrency(job.paid_total)}</span></div>
-<div class="total-line"><span>Kembali</span><span>${formatCurrency(job.change)}</span></div>
-<hr/>
-<p style="text-align:center">Terima kasih!</p>
-</body></html>`;
-}
 
 /* ─── Payment Modal ─── */
 function PaymentModal({
@@ -353,7 +310,6 @@ function PosWorkspace({
 	const [showPayment, setShowPayment] = useState(false);
 	const [toast, setToast] = useState<string | null>(null);
 	const [selectedWarehouse] = useState(warehouse.id.toString());
-	const printFrameRef = useRef<HTMLIFrameElement | null>(null);
 
 	const total = useMemo(
 		() => cart.reduce((sum, item) => sum + item.quantity * item.selling_price, 0),
@@ -390,44 +346,7 @@ function PosWorkspace({
 		setTimeout(() => setToast(null), 4000);
 	}
 
-	/* Poll for print jobs after successful checkout */
-	async function pollPrintJobs() {
-		const maxAttempts = 10; // 10 x 1.5s = 15s
-		for (let i = 0; i < maxAttempts; i++) {
-			await new Promise((r) => setTimeout(r, 1500));
-			try {
-				const res = await fetch(route("pos.print-jobs.pull"), {
-					headers: {
-						Accept: "application/json",
-						"X-Requested-With": "XMLHttpRequest",
-						"X-CSRF-TOKEN": getCsrfToken(),
-					},
-				});
-				if (res.ok) {
-					const data = await res.json();
-					if (data.jobs && data.jobs.length > 0) {
-						printReceipt(data.jobs[0] as PrintJob);
-						return;
-					}
-				}
-			} catch {
-				// ignore and retry
-			}
-		}
-	}
 
-	function printReceipt(job: PrintJob) {
-		const iframe = printFrameRef.current;
-		if (!iframe) return;
-		const doc = iframe.contentDocument || iframe.contentWindow?.document;
-		if (!doc) return;
-		doc.open();
-		doc.write(renderReceiptHTML(job));
-		doc.close();
-		setTimeout(() => {
-			iframe.contentWindow?.print();
-		}, 300);
-	}
 
 	function openPayment() {
 		if (cart.length === 0) return;
@@ -438,8 +357,6 @@ function PosWorkspace({
 		showToastMsg("Transaksi berhasil!");
 		setCart([]);
 
-		// Poll for print jobs (non-blocking)
-		await pollPrintJobs();
 
 		// Close modal after 3s
 		setTimeout(() => {
@@ -449,12 +366,6 @@ function PosWorkspace({
 
 	return (
 		<div className="min-h-[calc(100vh-9rem)] bg-[radial-gradient(circle_at_top_left,_rgba(34,211,238,0.18),_transparent_32%),linear-gradient(180deg,_#f8fafc_0%,_#eef2ff_100%)] py-8">
-			{/* Hidden iframe for printing */}
-			<iframe
-				ref={printFrameRef}
-				style={{ position: "absolute", width: 0, height: 0, border: "none", opacity: 0 }}
-				title="Receipt Print"
-			/>
 
 			{/* Toast */}
 			{toast && (
