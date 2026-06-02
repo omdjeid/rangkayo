@@ -92,7 +92,7 @@ export default function Receipt({
 			setBluetoothStatus(message);
 			setBluetoothReady(ready);
 		}, 2).catch(() => {
-			setBluetoothStatus(Gagal reconnect — klik Connect manual);
+			setBluetoothStatus("Gagal reconnect — klik Connect manual");
 			setBluetoothReady(false);
 		});
 		const reconnect = () => {
