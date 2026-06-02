@@ -16,6 +16,7 @@ interface Product {
 	unit: string | null;
 	cost_price: number;
 	selling_price: number;
+	wholesale_price: number;
 	stock: number;
 	is_active: boolean;
 }
@@ -34,6 +35,7 @@ const emptyProduct = {
 	unit_id: "",
 	cost_price: "0",
 	selling_price: "0",
+	wholesale_price: "0",
 };
 
 const inputClass =
@@ -66,7 +68,7 @@ export default function ProductsIndex({
 		form.post(route("products.store"), {
 			preserveScroll: true,
 			onSuccess: () =>
-				form.reset("sku", "barcode", "name", "cost_price", "selling_price"),
+				form.reset("sku", "barcode", "name", "cost_price", "selling_price", "wholesale_price"),
 		});
 	}
 
@@ -80,6 +82,7 @@ export default function ProductsIndex({
 			unit_id: product.unit_id?.toString() ?? "",
 			cost_price: product.cost_price.toString(),
 			selling_price: product.selling_price.toString(),
+			wholesale_price: (product.wholesale_price ?? 0).toString(),
 		});
 	}
 
@@ -278,6 +281,11 @@ export default function ProductsIndex({
 											<p className="text-sm text-slate-500">
 												Modal {formatCurrency(product.cost_price)}
 											</p>
+											{product.wholesale_price > 0 && (
+												<p className="text-sm text-amber-600">
+													Grosir {formatCurrency(product.wholesale_price)}
+												</p>
+											)}
 										</div>
 									</div>
 									<div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

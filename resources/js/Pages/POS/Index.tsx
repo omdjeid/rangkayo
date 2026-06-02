@@ -14,6 +14,7 @@ interface Product {
 	name: string;
 	unit: string | null;
 	selling_price: number;
+	wholesale_price: number;
 	cost_price: number;
 	stock: number;
 }
@@ -314,9 +315,14 @@ function PosWorkspace({
 	const [showPayment, setShowPayment] = useState(false);
 	const [toast, setToast] = useState<string | null>(null);
 	const [selectedWarehouse] = useState(warehouse.id.toString());
+	const [priceLevel, setPriceLevel] = useState<"retail" | "grosir">("retail");
+
+		function getPrice(p: { selling_price: number; wholesale_price?: number }) {
+		return priceLevel === "grosir" && p.wholesale_price ? p.wholesale_price : p.selling_price;
+	}
 
 	const total = useMemo(
-		() => cart.reduce((sum, item) => sum + item.quantity * item.selling_price, 0),
+		() => cart.reduce((sum, item) => sum + item.quantity * getPrice(item), 0),
 		[cart],
 	);
 
@@ -440,8 +446,13 @@ function PosWorkspace({
 									</span>
 								</div>
 								<p className="mt-5 text-2xl font-bold tracking-tight text-cyan-700">
-									{formatCurrency(product.selling_price)}
+									{formatCurrency(getPrice(product))}
 								</p>
+								{priceLevel === "retail" && product.wholesale_price > 0 && (
+									<p className="mt-1 text-xs text-slate-400">
+										Grosir: {formatCurrency(product.wholesale_price)}
+									</p>
+								)}
 							</button>
 						))}
 					</div>

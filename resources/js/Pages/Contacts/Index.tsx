@@ -9,6 +9,7 @@ interface Contact {
 	name: string;
 	email: string | null;
 	phone: string | null;
+	price_level: string;
 	address: string | null;
 	is_active: boolean;
 }
@@ -23,13 +24,14 @@ export default function ContactsIndex({
 		name: "",
 		email: "",
 		phone: "",
+		price_level: "retail",
 		address: "",
 	});
 	function submit(e: React.FormEvent) {
 		e.preventDefault();
 		form.post(route("contacts.store"), {
 			preserveScroll: true,
-			onSuccess: () => form.reset("name", "email", "phone", "address"),
+			onSuccess: () => form.reset("name", "email", "phone", "price_level", "address"),
 		});
 	}
 	return (
@@ -86,6 +88,16 @@ export default function ContactsIndex({
 									onChange={(e) => form.setData("phone", e.target.value)}
 								/>
 							</FormField>
+							<FormField label="Level Harga" hint="Retail = harga normal, Grosir = harga grosir.">
+								<select
+									className={inputClass}
+									value={form.data.price_level}
+									onChange={(e) => form.setData("price_level", e.target.value)}
+								>
+									<option value="retail">Retail</option>
+									<option value="grosir">Grosir</option>
+								</select>
+							</FormField>
 							<FormField label="Alamat" error={form.errors.address}>
 								<textarea
 									className={inputClass}
@@ -122,9 +134,16 @@ export default function ContactsIndex({
 												{contact.email ?? "-"}
 											</p>
 										</div>
-										<span className="rounded-full bg-cyan-50 px-3 py-1 text-xs font-bold text-cyan-700">
-											{contact.type}
-										</span>
+										<div className="flex gap-1">
+											<span className="rounded-full bg-cyan-50 px-3 py-1 text-xs font-bold text-cyan-700">
+												{contact.type}
+											</span>
+											{contact.price_level === "grosir" && (
+												<span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-700">
+													Grosir
+												</span>
+											)}
+										</div>
 									</div>
 									{contact.address && (
 										<p className="mt-3 text-sm text-slate-600">

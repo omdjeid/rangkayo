@@ -18,6 +18,7 @@ class Contact extends Model
         'name',
         'email',
         'phone',
+        'price_level',
         'address',
         'is_active',
     ];

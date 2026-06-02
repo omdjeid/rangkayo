@@ -24,6 +24,7 @@ class Product extends Model
         'cost_price',
         'selling_price',
         'minimum_stock',
+        'wholesale_price',
         'is_active',
     ];
 
@@ -33,6 +34,7 @@ class Product extends Model
             'cost_price' => 'decimal:2',
             'selling_price' => 'decimal:2',
             'minimum_stock' => 'decimal:4',
+            'wholesale_price' => 'decimal:2',
             'is_active' => 'boolean',
         ];
     }

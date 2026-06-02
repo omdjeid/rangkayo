@@ -142,12 +142,18 @@ class DemoTenantSeeder extends Seeder
                 'name' => 'Produk Demo',
                 'cost_price' => 50000,
                 'selling_price' => 80000,
+                'wholesale_price' => 65000,
             ],
         );
 
         Contact::query()->firstOrCreate(
             ['tenant_id' => $tenant->id, 'type' => 'customer', 'name' => 'Customer Umum'],
             ['phone' => '080000000000'],
+        );
+
+        Contact::query()->firstOrCreate(
+            ['tenant_id' => $tenant->id, 'type' => 'customer', 'name' => 'Customer Grosir'],
+            ['phone' => '080000000001', 'price_level' => 'grosir'],
         );
 
         Contact::query()->firstOrCreate(

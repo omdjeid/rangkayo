@@ -86,6 +86,7 @@ class ProductController extends Controller
             'unit_id' => ['nullable', Rule::exists('units', 'id')->where('tenant_id', $tenantId)],
             'cost_price' => ['required', 'numeric', 'min:0'],
             'selling_price' => ['required', 'numeric', 'min:0'],
+            'wholesale_price' => ['nullable', 'numeric', 'min:0'],
         ];
     }
 }

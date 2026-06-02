@@ -20,7 +20,7 @@ class ContactController extends Controller
             'contacts' => Contact::query()
                 ->where('tenant_id', $tenant->id)
                 ->latest()
-                ->get(['id', 'type', 'name', 'email', 'phone', 'address', 'is_active']),
+                ->get(['id', 'type', 'name', 'email', 'phone', 'price_level', 'address', 'is_active']),
         ]);
     }
 
@@ -32,6 +32,7 @@ class ContactController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'email' => ['nullable', 'email', 'max:255'],
             'phone' => ['nullable', 'string', 'max:64'],
+            'price_level' => ['nullable', Rule::in(['retail', 'grosir'])],
             'address' => ['nullable', 'string', 'max:500'],
         ]);
 
