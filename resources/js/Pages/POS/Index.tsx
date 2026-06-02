@@ -2,11 +2,19 @@ import ApplicationLogo from "@/Components/ApplicationLogo";
 import FormField from "@/Components/FormField";
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
 import type { PageProps, WarehouseOption } from "@/types";
+import {
+	autoConnectBluetoothPrinter,
+	bluetoothSupported,
+	printThermalBluetoothReceipt,
+	receiptTextFromPayload,
+	savedBluetoothPrinter,
+	type ThermalReceiptPayload,
+} from "@/utils/thermalBluetoothPrinter";
 import { formatCurrency, formatNumber } from "@/utils/format";
 import { Head, Link } from "@inertiajs/react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import QRCode from "qrcode";
 import { buildManualQrisPayload } from "@/utils/qris";
-import { useEffect, useMemo, useRef, useState } from "react";
 
 interface Product {
 	id: number;
@@ -14,7 +22,6 @@ interface Product {
 	name: string;
 	unit: string | null;
 	selling_price: number;
-	wholesale_price: number;
 	cost_price: number;
 	stock: number;
 }
@@ -38,18 +45,60 @@ interface QrisConfig {
 	status?: string;
 }
 
+interface PrintJob {
+	id: string;
+	sale_number: string;
+	items: { product_name: string; quantity: number; unit_price: number; line_total: number }[];
+	grand_total: number;
+	paid_total: number;
+	change_total: number;
+	payment_method: string;
+	sold_at: string;
+	branch?: { name?: string; code?: string; phone?: string; address?: string };
+	cashier?: string;
+}
 
 const inputClass =
 	"w-full rounded-2xl border-slate-200 bg-white/80 shadow-sm focus:border-cyan-400 focus:ring-cyan-400";
 
 function getCsrfToken(): string {
-	const meta = document.querySelector('meta[name="csrf-token"]');
-	if (meta) return meta.getAttribute("content") || "";
-	const match = document.cookie.match(/XSRF-TOKEN=([^;]+)/);
-	return match ? decodeURIComponent(match[1]) : "";
+	const el = document.querySelector('meta[name="csrf-token"]');
+	if (el) return el.getAttribute("content") || "";
+	const m = document.cookie.match(/XSRF-TOKEN=([^;]+)/);
+	return m ? decodeURIComponent(m[1]) : "";
 }
 
 /* ─── Receipt renderer (used for auto-print) ─── */
+function renderReceiptHTML(job: PrintJob): string {
+	const itemsHTML = (job.items || [])
+		.map(
+			(i) =>
+				`<tr><td>${i.product_name}</td><td style="text-align:right">${i.quantity}</td><td style="text-align:right">${formatCurrency(i.unit_price)}</td><td style="text-align:right">${formatCurrency(i.line_total)}</td></tr>`,
+		)
+		.join("");
+	return `<!DOCTYPE html><html><head><style>
+body{font-family:monospace;font-size:12px;width:80mm;margin:0;padding:8px}
+h3{text-align:center;margin:4px 0}table{width:100%;border-collapse:collapse}td{padding:2px 0}
+hr{border:none;border-top:1px dashed #000;margin:8px 0}
+.total-line{display:flex;justify-content:space-between;font-weight:bold;font-size:13px}
+</style></head><body>
+<h3>STRUK PEMBAYARAN</h3>
+${job.branch?.name ? `<p style="text-align:center">${job.branch.name}</p>` : ""}
+<hr/>
+<p>No: ${job.sale_number}</p>
+<p>Tgl: ${job.sold_at}</p>
+<p>Kasir: ${job.cashier || "-"}</p>
+<hr/>
+<table><thead><tr><th>Item</th><th style="text-align:right">Qty</th><th style="text-align:right">Harga</th><th style="text-align:right">Subtotal</th></tr></thead>
+<tbody>${itemsHTML}</tbody></table>
+<hr/>
+<div class="total-line"><span>Total</span><span>${formatCurrency(job.grand_total)}</span></div>
+<div class="total-line"><span>Bayar (${job.payment_method})</span><span>${formatCurrency(job.paid_total)}</span></div>
+<div class="total-line"><span>Kembali</span><span>${formatCurrency(job.change_total)}</span></div>
+<hr/>
+<p style="text-align:center">Terima kasih!</p>
+</body></html>`;
+}
 
 /* ─── Payment Modal ─── */
 function PaymentModal({
@@ -125,12 +174,8 @@ function PaymentModal({
 				throw new Error(errData.message || `HTTP ${res.status}`);
 			}
 
-			const data = await res.json();
-			if (data.receipt_url) {
-				window.location.href = data.receipt_url;
-			} else {
-				onSuccess();
-			}
+			await res.json();
+			onSuccess();
 		} catch (err: unknown) {
 			const message = err instanceof Error ? err.message : "Unknown error";
 			alert("Gagal memproses pembayaran: " + message);
@@ -296,6 +341,8 @@ function PosWorkspace({
 	openShift,
 	requiresShift,
 	qris,
+	customers,
+	overrides,
 }: {
 	products: Product[];
 	recentSales: Sale[];
@@ -310,19 +357,27 @@ function PosWorkspace({
 	} | null;
 	requiresShift: boolean;
 	qris?: QrisConfig | null;
+	customers: Array<{ id: number; name: string; price_level: string }>;
+	overrides: Array<{ contact_id: number; product_id: number; price: number }>;
 }) {
 	const [cart, setCart] = useState<CartItem[]>([]);
 	const [showPayment, setShowPayment] = useState(false);
+	const [btStatus, setBtStatus] = useState(
+		bluetoothSupported()
+			? savedBluetoothPrinter()
+				? "Printer tersimpan siap"
+				: "Bluetooth tersedia — belum connect"
+			: "Bluetooth tidak didukung browser ini",
+	);
+	const [btReady, setBtReady] = useState(false);
 	const [toast, setToast] = useState<string | null>(null);
 	const [selectedWarehouse] = useState(warehouse.id.toString());
-	const [priceLevel, setPriceLevel] = useState<"retail" | "grosir">("retail");
-
-		function getPrice(p: { selling_price: number; wholesale_price?: number }) {
-		return priceLevel === "grosir" && p.wholesale_price ? p.wholesale_price : p.selling_price;
-	}
+	const [selectedCustomerId, setSelectedCustomerId] = useState<number | null>(null);
+	const selectedCustomer = (customers || []).find((c: {id: number}) => c.id === selectedCustomerId) || null;
+	const printFrameRef = useRef<HTMLIFrameElement | null>(null);
 
 	const total = useMemo(
-		() => cart.reduce((sum, item) => sum + item.quantity * getPrice(item), 0),
+		() => cart.reduce((sum, item) => sum + item.quantity * item.selling_price, 0),
 		[cart],
 	);
 
@@ -356,7 +411,84 @@ function PosWorkspace({
 		setTimeout(() => setToast(null), 4000);
 	}
 
+	/* Auto-connect Bluetooth printer on mount */
+	useEffect(() => {
+		if (!bluetoothSupported()) return;
+		autoConnectBluetoothPrinter((msg, ready) => {
+			setBtStatus(msg);
+			setBtReady(ready);
+		}, 2);
+	}, []);
 
+	/* Poll for print jobs after successful checkout */
+	async function pollPrintJobs() {
+		const maxAttempts = 10; // 10 x 1.5s = 15s
+		for (let i = 0; i < maxAttempts; i++) {
+			await new Promise((r) => setTimeout(r, 1500));
+			try {
+				const res = await fetch(route("pos.print-jobs.pull"), {
+					headers: {
+						Accept: "application/json",
+						"X-Requested-With": "XMLHttpRequest",
+						"X-CSRF-TOKEN": getCsrfToken(),
+					},
+				});
+				if (res.ok) {
+					const data = await res.json();
+					if (data.jobs && data.jobs.length > 0) {
+						printReceipt(data.jobs[0] as PrintJob);
+						return;
+					}
+				}
+			} catch {
+				// ignore and retry
+			}
+		}
+	}
+
+	async function printReceipt(job: PrintJob) {
+		// Try thermal Bluetooth printer first
+		if (btReady && bluetoothSupported()) {
+			try {
+				const payload: ThermalReceiptPayload = {
+					tenant_name: "RangKayo",
+					sale_number: job.sale_number,
+					sold_at: job.sold_at,
+					payment_method: job.payment_method,
+					subtotal: job.items.reduce((s, i) => s + i.line_total, 0),
+					grand_total: job.grand_total,
+					paid_total: job.paid_total,
+					change_total: job.change_total,
+					cashier: job.cashier ?? null,
+					branch: job.branch ? { name: job.branch.name ?? null, phone: job.branch.phone ?? null, address: job.branch.address ?? null } : null,
+					items: job.items.map((i) => ({
+						product_name: i.product_name,
+						quantity: i.quantity,
+						unit_price: i.unit_price,
+						line_total: i.line_total,
+					})),
+				};
+				await printThermalBluetoothReceipt(payload);
+				setBtStatus("Struk tercetak via Bluetooth");
+				return;
+			} catch (err) {
+				console.warn("Bluetooth print failed, fallback to browser:", err);
+				setBtStatus("Gagal Bluetooth — pakai print browser");
+			}
+		}
+
+		// Fallback: browser print via iframe
+		const iframe = printFrameRef.current;
+		if (!iframe) return;
+		const doc = iframe.contentDocument || iframe.contentWindow?.document;
+		if (!doc) return;
+		doc.open();
+		doc.write(renderReceiptHTML(job));
+		doc.close();
+		setTimeout(() => {
+			iframe.contentWindow?.print();
+		}, 300);
+	}
 
 	function openPayment() {
 		if (cart.length === 0) return;
@@ -367,6 +499,8 @@ function PosWorkspace({
 		showToastMsg("Transaksi berhasil!");
 		setCart([]);
 
+		// Poll for print jobs (non-blocking)
+		await pollPrintJobs();
 
 		// Close modal after 3s
 		setTimeout(() => {
@@ -376,6 +510,12 @@ function PosWorkspace({
 
 	return (
 		<div className="min-h-[calc(100vh-9rem)] bg-[radial-gradient(circle_at_top_left,_rgba(34,211,238,0.18),_transparent_32%),linear-gradient(180deg,_#f8fafc_0%,_#eef2ff_100%)] py-8">
+			{/* Hidden iframe for printing */}
+			<iframe
+				ref={printFrameRef}
+				style={{ position: "absolute", width: 0, height: 0, border: "none", opacity: 0 }}
+				title="Receipt Print"
+			/>
 
 			{/* Toast */}
 			{toast && (
@@ -446,13 +586,8 @@ function PosWorkspace({
 									</span>
 								</div>
 								<p className="mt-5 text-2xl font-bold tracking-tight text-cyan-700">
-									{formatCurrency(getPrice(product))}
+									{formatCurrency(product.selling_price)}
 								</p>
-								{priceLevel === "retail" && product.wholesale_price > 0 && (
-									<p className="mt-1 text-xs text-slate-400">
-										Grosir: {formatCurrency(product.wholesale_price)}
-									</p>
-								)}
 							</button>
 						))}
 					</div>
@@ -532,6 +667,19 @@ function PosWorkspace({
 						</div>
 
 						<div className="mt-4 space-y-3">
+							<div>
+								<label className="text-xs font-medium text-slate-600">Customer</label>
+								<select
+									value={selectedCustomerId || ""}
+									onChange={(e) => setSelectedCustomerId(e.target.value ? Number(e.target.value) : null)}
+									className="mt-1 w-full rounded-xl border-slate-200 bg-white/80 text-sm shadow-sm"
+								>
+									<option value="">Umum (Retail)</option>
+									{(customers || []).map((c: {id: number; name: string; price_level: string}) => (
+										<option key={c.id} value={c.id}>{c.name} ({c.price_level})</option>
+									))}
+								</select>
+							</div>
 							<FormField
 								label="Gudang stok"
 								required
@@ -618,6 +766,8 @@ export default function PosIndex({
 	mode,
 	openShift,
 	qris,
+	customers,
+	overrides,
 }: PageProps<{
 	products: Product[];
 	recentSales: Sale[];
@@ -632,6 +782,8 @@ export default function PosIndex({
 		expected_cash: number;
 	} | null;
 	qris?: QrisConfig | null;
+	customers: Array<{ id: number; name: string; price_level: string }>;
+	overrides: Array<{ contact_id: number; product_id: number; price: number }>;
 }>) {
 	if (mode === "cashier") {
 		return (
@@ -680,6 +832,8 @@ export default function PosIndex({
 					openShift={openShift}
 					requiresShift
 					qris={qris}
+					customers={customers}
+					overrides={overrides}
 				/>
 			</div>
 		);
@@ -708,6 +862,8 @@ export default function PosIndex({
 				openShift={openShift}
 				requiresShift={false}
 				qris={qris}
+				customers={customers}
+				overrides={overrides}
 			/>
 		</AuthenticatedLayout>
 	);

@@ -18,6 +18,7 @@ use App\Http\Controllers\BranchSwitchController;
 use App\Http\Controllers\BranchWarehouseController;
 use App\Http\Controllers\CashierShiftController;
 use App\Http\Controllers\ContactController;
+use App\Http\Controllers\CustomerOverrideController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\HealthController;
 use App\Http\Controllers\Inventory\ProductController;
@@ -127,6 +128,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::middleware(['cashier.redirect', 'tenant.role:owner,admin,accountant,branch_manager'])->group(function () {
         Route::get('/contacts', [ContactController::class, 'index'])->name('contacts.index');
         Route::post('/contacts', [ContactController::class, 'store'])->name('contacts.store');
+    Route::get('/contacts/{contact}/overrides', [CustomerOverrideController::class, 'index'])->name('customer-overrides.index');
+    Route::post('/contacts/{contact}/overrides', [CustomerOverrideController::class, 'store'])->name('customer-overrides.store');
+    Route::delete('/contacts/{contact}/overrides/{override}', [CustomerOverrideController::class, 'destroy'])->name('customer-overrides.destroy');
         Route::get('/invoices', [InvoiceController::class, 'index'])->name('invoices.index');
         Route::post('/invoices', [InvoiceController::class, 'store'])->name('invoices.store');
         Route::get('/invoices/{invoice}/print', InvoicePrintController::class)->name('invoices.print');

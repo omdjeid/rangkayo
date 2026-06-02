@@ -16,6 +16,8 @@ use App\Actions\Sales\CheckoutPosSaleAction;
 use App\Support\Printing\BrowserPrintQueue;
 
 
+use App\Models\Contact;
+use App\Models\CustomerOverride;
 use App\Models\Inventory\Product;
 
 
@@ -211,6 +213,8 @@ class PosController extends Controller
             ],
 
 
+            'customers' => \App\Models\Contact::query()->where('tenant_id', $tenant->id)->where('type', 'customer')->get(['id', 'name', 'price_level'])->map(fn ($c): array => ['id' => $c->id, 'name' => $c->name, 'price_level' => $c->price_level])->values(),
+            'overrides' => \App\Models\CustomerOverride::query()->where('tenant_id', $tenant->id)->get(['contact_id', 'product_id', 'price'])->map(fn ($o): array => ['contact_id' => (int) $o->contact_id, 'product_id' => (int) $o->product_id, 'price' => (float) $o->price])->values(),
             'recentSales' => Sale::query()
 
 

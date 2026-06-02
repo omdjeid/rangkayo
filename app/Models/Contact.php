@@ -39,4 +39,9 @@ class Contact extends Model
     {
         return $this->hasMany(Invoice::class);
     }
+
+    public function priceOverrides(): HasMany
+    {
+        return $this->hasMany(CustomerOverride::class, 'contact_id');
+    }
 }
