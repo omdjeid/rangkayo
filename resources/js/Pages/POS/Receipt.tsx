@@ -85,10 +85,6 @@ export default function Receipt({
 					? `USB/browser: ${printPreference.printer_name}`
 					: "USB/browser print aktif",
 			);
-			if (printPreference.auto_print) {
-				window.setTimeout(() => window.print(), 250);
-			}
-
 			return undefined;
 		}
 
@@ -96,12 +92,6 @@ export default function Receipt({
 			setBluetoothStatus(message);
 			setBluetoothReady(ready);
 		}, 2);
-		if (printPreference.auto_print) {
-			window.setTimeout(() => {
-				void printBluetoothReceipt();
-			}, 500);
-		}
-
 		const reconnect = () => {
 			if (document.visibilityState === "hidden") return;
 
