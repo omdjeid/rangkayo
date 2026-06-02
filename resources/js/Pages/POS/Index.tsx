@@ -174,8 +174,12 @@ function PaymentModal({
 				throw new Error(errData.message || `HTTP ${res.status}`);
 			}
 
-			await res.json();
-			onSuccess();
+			const data = await res.json();
+			if (data.receipt_url) {
+				window.location.href = data.receipt_url;
+			} else {
+				onSuccess();
+			}
 		} catch (err: unknown) {
 			const message = err instanceof Error ? err.message : "Unknown error";
 			alert("Gagal memproses pembayaran: " + message);
