@@ -5,7 +5,7 @@ export type PrintPresetKey =
 	| "custom-paper"
 	| "dot-matrix";
 
-export type PrintConnectionKey = "browser" | "bluetooth" | "serial";
+export type PrintConnectionKey = "browser" | "bluetooth";
 
 export interface PrintPreference {
 	preset: PrintPresetKey;

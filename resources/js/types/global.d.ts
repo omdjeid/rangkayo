@@ -47,21 +47,7 @@ declare global {
 		}) => Promise<BluetoothDevice>;
 	}
 
-	
-interface SerialPort {
-    open(options: { baudRate: number }): Promise<void>;
-    close(): Promise<void>;
-    readonly readable: ReadableStream<Uint8Array> | null;
-    readonly writable: WritableStream<Uint8Array> | null;
-}
-
-interface Serial {
-    requestPort(): Promise<SerialPort>;
-    getPorts(): Promise<SerialPort[]>;
-}
-
-interface Navigator {
-	serial?: Serial;
+	interface Navigator {
 		bluetooth?: Bluetooth;
 	}
 
