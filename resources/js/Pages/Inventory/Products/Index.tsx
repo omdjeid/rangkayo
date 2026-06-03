@@ -245,6 +245,23 @@ export default function ProductsIndex({
 								/>
 							</FormField>
 
+							<FormField
+								label=Harga Grosir
+								hint=Harga untuk customer grosir. Kosongkan jika tidak ada.
+								error={form.errors.wholesale_price}
+							>
+								<input
+									className={inputClass}
+									placeholder=65000
+									type=number
+									min=0
+									value={form.data.wholesale_price}
+									onChange={(e) =>
+										form.setData(wholesale_price, e.target.value)
+									}
+								/>
+							</FormField>
+
 							<button
 								disabled={form.processing}
 								className="w-full rounded-2xl bg-slate-950 px-5 py-3 font-semibold text-white shadow-lg shadow-slate-300 disabled:opacity-60"
