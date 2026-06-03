@@ -102,6 +102,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/reports/trial-balance', [ReportController::class, 'trialBalance'])->name('reports.trial-balance');
         Route::get('/reports/profit-loss', [ReportController::class, 'profitLoss'])->name('reports.profit-loss');
         Route::get('/reports/balance-sheet', [ReportController::class, 'balanceSheet'])->name('reports.balance-sheet');
+        Route::get('/reports/sales/export', [SalesReportController::class, 'export'])->name('reports.sales.export');
         Route::get('/reports/sales', SalesReportController::class)->name('reports.sales');
         Route::get('/reports/branch-comparison', BranchComparisonReportController::class)->name('reports.branch-comparison');
         Route::get('/tenant-users', [TenantUserController::class, 'index'])->name('tenant-users.index');

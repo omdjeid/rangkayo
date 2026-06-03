@@ -85,6 +85,16 @@ export default function SalesReportIndex({
 	function apply() {
 		router.get(route("reports.sales"), form, { preserveState: true });
 	}
+	function exportUrl(type: "transactions" | "products") {
+		const params = new URLSearchParams();
+		params.set("start_date", form.start_date);
+		params.set("end_date", form.end_date);
+		if (form.branch_id) {
+			params.set("branch_id", form.branch_id);
+		}
+		params.set("type", type);
+		return `${route("reports.sales.export")}?${params.toString()}`;
+	}
 	return (
 		<AuthenticatedLayout
 			header={
@@ -135,6 +145,32 @@ export default function SalesReportIndex({
 							>
 								Terapkan
 							</button>
+						</div>
+						<div className="mt-3 flex gap-2">
+							<a
+								href={exportUrl("transactions")}
+								target="_blank"
+								rel="noopener noreferrer"
+								className="inline-flex items-center gap-1.5 rounded-2xl border border-cyan-200 bg-cyan-50 px-4 py-2 text-sm font-semibold text-cyan-800 shadow-sm transition hover:bg-cyan-100"
+							>
+								<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
+									<path d="M10.75 2.75a.75.75 0 00-1.5 0v8.614L6.295 8.235a.75.75 0 10-1.09 1.03l4.25 4.5a.75.75 0 001.09 0l4.25-4.5a.75.75 0 00-1.09-1.03l-2.955 3.129V2.75z" />
+									<path d="M3.5 12.75a.75.75 0 00-1.5 0v2.5A2.75 2.75 0 004.75 18h10.5A2.75 2.75 0 0018 15.25v-2.5a.75.75 0 00-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5z" />
+								</svg>
+								Export Transaksi CSV
+							</a>
+							<a
+								href={exportUrl("products")}
+								target="_blank"
+								rel="noopener noreferrer"
+								className="inline-flex items-center gap-1.5 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-800 shadow-sm transition hover:bg-emerald-100"
+							>
+								<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
+									<path d="M10.75 2.75a.75.75 0 00-1.5 0v8.614L6.295 8.235a.75.75 0 10-1.09 1.03l4.25 4.5a.75.75 0 001.09 0l4.25-4.5a.75.75 0 00-1.09-1.03l-2.955 3.129V2.75z" />
+									<path d="M3.5 12.75a.75.75 0 00-1.5 0v2.5A2.75 2.75 0 004.75 18h10.5A2.75 2.75 0 0018 15.25v-2.5a.75.75 0 00-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5z" />
+								</svg>
+								Export Produk CSV
+							</a>
 						</div>
 					</section>
 					<section className="grid gap-4 md:grid-cols-3">

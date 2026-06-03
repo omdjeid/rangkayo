@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class SalesReportController extends Controller
 {
@@ -86,5 +87,108 @@ class SalesReportController extends Controller
             'byCashier' => $byCashier,
             'byProduct' => $byProduct,
         ]);
+    }
+
+    public function export(Request $request, CurrentTenant $currentTenant): StreamedResponse
+    {
+        $context = $currentTenant->context();
+        $tenant = $context->tenant;
+        $branch = $currentTenant->branch($tenant);
+        $startDate = $request->date('start_date')?->toDateString() ?? now()->startOfMonth()->toDateString();
+        $endDate = $request->date('end_date')?->toDateString() ?? now()->toDateString();
+        $branchId = $context->isBranchScoped() ? $branch->id : ($request->integer('branch_id') ?: null);
+        $type = $request->get('type', 'transactions'); // 'transactions' or 'products'
+
+        $salesQuery = Sale::query()
+            ->where('tenant_id', $tenant->id)
+            ->whereDate('sold_at', '>=', $startDate)
+            ->whereDate('sold_at', '<=', $endDate);
+
+        if ($branchId !== null) {
+            $salesQuery->where('branch_id', $branchId);
+        }
+
+        if ($type === 'products') {
+            return $this->exportProducts($salesQuery, $startDate, $endDate);
+        }
+
+        return $this->exportTransactions($salesQuery, $startDate, $endDate);
+    }
+
+    private function exportTransactions($salesQuery, string $startDate, string $endDate): StreamedResponse
+    {
+        $sales = (clone $salesQuery)
+            ->with(['branch:id,name,code', 'user:id,name'])
+            ->orderBy('sold_at')
+            ->get();
+
+        $filename = "laporan-penjualan-{$startDate}-{$endDate}.csv";
+        $headers = [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+            'Cache-Control' => 'no-cache, no-store, must-revalidate',
+            'Pragma' => 'no-cache',
+            'Expires' => '0',
+        ];
+
+        return response()->stream(function () use ($sales) {
+            $handle = fopen('php://output', 'w');
+            // Write UTF-8 BOM for Excel compatibility
+            fwrite($handle, "\xEF\xBB\xBF");
+            // Header row
+            fputcsv($handle, ['Tanggal', 'No. Transaksi', 'Kasir', 'Cabang', 'Metode Bayar', 'Total', 'Dibayar', 'Kembalian']);
+            foreach ($sales as $sale) {
+                fputcsv($handle, [
+                    $sale->sold_at->format('Y-m-d H:i'),
+                    $sale->sale_number,
+                    $sale->user?->name ?? 'Tidak tercatat',
+                    $sale->branch?->name ?? 'Tanpa cabang',
+                    $sale->payment_method,
+                    number_format($sale->grand_total, 2, ',', '.'),
+                    number_format($sale->paid_total, 2, ',', '.'),
+                    number_format($sale->change_total, 2, ',', '.'),
+                ]);
+            }
+            fclose($handle);
+        }, 200, $headers);
+    }
+
+    private function exportProducts($salesQuery, string $startDate, string $endDate): StreamedResponse
+    {
+        $saleIds = (clone $salesQuery)->pluck('id');
+        $products = SaleItem::query()
+            ->whereIn('sale_id', $saleIds)
+            ->select('product_name', DB::raw('sum(quantity) as quantity'), DB::raw('sum(line_total) as total'), DB::raw('sum(cost_total) as cost_total'))
+            ->groupBy('product_name')
+            ->orderByDesc('total')
+            ->get();
+
+        $filename = "laporan-produk-{$startDate}-{$endDate}.csv";
+        $headers = [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+            'Cache-Control' => 'no-cache, no-store, must-revalidate',
+            'Pragma' => 'no-cache',
+            'Expires' => '0',
+        ];
+
+        return response()->stream(function () use ($products) {
+            $handle = fopen('php://output', 'w');
+            // Write UTF-8 BOM for Excel compatibility
+            fwrite($handle, "\xEF\xBB\xBF");
+            // Header row
+            fputcsv($handle, ['Produk', 'Qty', 'Total', 'Modal', 'Laba']);
+            foreach ($products as $item) {
+                $grossProfit = (float) $item->total - (float) $item->cost_total;
+                fputcsv($handle, [
+                    $item->product_name,
+                    number_format($item->quantity, 2, ',', '.'),
+                    number_format($item->total, 2, ',', '.'),
+                    number_format($item->cost_total, 2, ',', '.'),
+                    number_format($grossProfit, 2, ',', '.'),
+                ]);
+            }
+            fclose($handle);
+        }, 200, $headers);
     }
 }
