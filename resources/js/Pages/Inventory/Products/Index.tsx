@@ -246,18 +246,18 @@ export default function ProductsIndex({
 							</FormField>
 
 							<FormField
-								label=Harga Grosir
-								hint=Harga untuk customer grosir. Kosongkan jika tidak ada.
+								label="Harga Grosir"
+								hint="Harga untuk customer grosir. Kosongkan jika tidak ada."
 								error={form.errors.wholesale_price}
 							>
 								<input
 									className={inputClass}
-									placeholder=65000
-									type=number
-									min=0
+									placeholder="65000"
+									type="number"
+									min="0"
 									value={form.data.wholesale_price}
 									onChange={(e) =>
-										form.setData(wholesale_price, e.target.value)
+										form.setData("wholesale_price", e.target.value)
 									}
 								/>
 							</FormField>
