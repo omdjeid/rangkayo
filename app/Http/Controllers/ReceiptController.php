@@ -19,7 +19,7 @@ class ReceiptController extends Controller
         $sale->load(['items', 'branch', 'warehouse', 'user']);
 
         return Inertia::render('POS/Receipt', [
-            'tenant' => $tenant->only(['name']),
+            'tenant' => $tenant->only(['name', 'logo_url']),
             'printPreference' => PrintPreferences::forTenant($tenant)['receipt'],
             'sale' => [
                 'id' => $sale->id,

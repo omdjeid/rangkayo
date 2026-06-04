@@ -37,7 +37,7 @@ export default function Receipt({
 	sale,
 	printPreference,
 }: PageProps<{
-	tenant: { name: string };
+	tenant: { name: string; logo_url: string | null };
 	sale: ReceiptSale;
 	printPreference: PrintPreference;
 }>) {
@@ -239,6 +239,9 @@ export default function Receipt({
 			</section>
 			<div className="print-sheet mx-auto max-w-sm rounded-[2rem] bg-white p-6 shadow-2xl print:max-w-none print:rounded-none print:p-0 print:shadow-none">
 				<div className="text-center">
+t				{tenant.logo_url && (
+						<img src={tenant.logo_url} alt="Logo" className="mx-auto mb-2 max-h-16 object-contain" />
+					)}
 					<h1 className="text-xl font-black">{tenant.name}</h1>
 					<p className="text-sm text-slate-500">{sale.branch.name}</p>
 					<p className="text-xs text-slate-400">{sale.branch.address}</p>

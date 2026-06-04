@@ -51,6 +51,7 @@ export default function InvoicePrint({
 		legal_name: string | null;
 		tax_number: string | null;
 		currency_code: string | null;
+		logo_url: string | null;
 	};
 	invoice: PrintableInvoice;
 	printPreference: PrintPreference;
@@ -88,6 +89,9 @@ export default function InvoicePrint({
 						</p>
 					</div>
 					<div className="text-left sm:text-right">
+						{tenant.logo_url && (
+							<img src={tenant.logo_url} alt="Logo" className="mb-2 ml-auto max-h-12 object-contain" />
+						)}
 						<h2 className="text-xl font-bold text-slate-950">
 							{tenant.legal_name ?? tenant.name}
 						</h2>

@@ -42,6 +42,7 @@ class Tenant extends Model
         'invoice_prefix',
         'default_cash_account_code',
         'default_bank_account_code',
+        'logo_url',
     ];
 
     protected function casts(): array

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Support\CurrentTenant;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -15,7 +16,7 @@ class TenantSettingsController extends Controller
         $tenant = $currentTenant->tenant();
 
         return Inertia::render('Tenancy/Settings/Edit', [
-            'tenant' => $tenant->only(['id', 'name', 'slug', 'legal_name', 'tax_number', 'business_type', 'currency_code', 'timezone', 'receipt_prefix', 'invoice_prefix', 'default_cash_account_code', 'default_bank_account_code']),
+            'tenant' => $tenant->only(['id', 'name', 'slug', 'legal_name', 'tax_number', 'business_type', 'currency_code', 'timezone', 'receipt_prefix', 'invoice_prefix', 'default_cash_account_code', 'default_bank_account_code', 'logo_url']),
         ]);
     }
 
@@ -34,7 +35,19 @@ class TenantSettingsController extends Controller
             'invoice_prefix' => ['required', 'string', 'max:16'],
             'default_cash_account_code' => ['required', 'string', 'max:16'],
             'default_bank_account_code' => ['required', 'string', 'max:16'],
+            'logo' => ['nullable', 'file', 'image', 'max:2048'],
         ]);
+
+        if ($request->hasFile('logo')) {
+            $path = $request->file('logo')->storeAs(
+                'logos/' . $tenant->id,
+                'logo.webp',
+                'public'
+            );
+            $validated['logo_url'] = Storage::disk('public')->url($path);
+        }
+
+        unset($validated['logo']);
 
         $tenant->update($validated);
 

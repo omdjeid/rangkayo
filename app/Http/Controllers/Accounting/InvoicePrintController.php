@@ -20,7 +20,7 @@ class InvoicePrintController extends Controller
         $invoice->load(['contact', 'branch', 'items.account', 'items.product', 'items.taxRate']);
 
         return Inertia::render('Accounting/Invoices/Print', [
-            'tenant' => $tenant->only(['name', 'legal_name', 'tax_number', 'currency_code']),
+            'tenant' => $tenant->only(['name', 'legal_name', 'tax_number', 'currency_code', 'logo_url']),
             'printPreference' => PrintPreferences::forTenant($tenant)['invoice'],
             'invoice' => [
                 'id' => $invoice->id,
