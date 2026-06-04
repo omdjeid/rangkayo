@@ -94,6 +94,7 @@ class DemoTenantSeeder extends Seeder
                 'branch_limit' => 3,
                 'transaction_limit' => 5000,
                 'trial_ends_at' => now()->addDays(14),
+                'monthly_price' => 99000,'current_period_starts_at' => now(),
                 'current_period_ends_at' => now()->addMonth(),
             ],
         );
