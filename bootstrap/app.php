@@ -24,6 +24,7 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withSchedule(function (Schedule $schedule): void {
         $schedule->command('subscriptions:reminders')->dailyAt('08:00')->withoutOverlapping();
+         $schedule->command('subscriptions:expire-trials')->dailyAt('00:05')->withoutOverlapping();
         $schedule->command('production:monitor --alert')->everyFiveMinutes()->withoutOverlapping();
     })
     ->withMiddleware(function (Middleware $middleware): void {
@@ -47,6 +48,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'platform.admin' => EnsurePlatformAdmin::class,
             'tenant.active' => EnsureTenantSubscriptionActive::class,
             'tenant.role' => EnsureTenantRole::class,
+            'plan.limits' => \App\Http\Middleware\EnforcePlanLimits::class,
         ]);
 
         $middleware->validateCsrfTokens(except: [
