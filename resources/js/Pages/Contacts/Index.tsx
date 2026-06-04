@@ -1,7 +1,7 @@
 import FormField from "@/Components/FormField";
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
 import type { PageProps } from "@/types";
-import { Head, useForm } from "@inertiajs/react";
+import { Head, Link, useForm } from "@inertiajs/react";
 
 interface Contact {
 	id: number;
@@ -130,7 +130,7 @@ export default function ContactsIndex({
 												{contact.name}
 											</p>
 											<p className="text-sm text-slate-500">
-												{contact.type} · {contact.phone ?? "-"} ·{" "}
+												{contact.type} \u00b7 {contact.phone ?? "-"} \u00b7{" "}
 												{contact.email ?? "-"}
 											</p>
 										</div>
@@ -149,6 +149,20 @@ export default function ContactsIndex({
 										<p className="mt-3 text-sm text-slate-600">
 											{contact.address}
 										</p>
+									)}
+									{(contact.type === "customer" || contact.type === "both") && (
+										<div className="mt-3">
+											<Link
+												href={route("customer-overrides.index", contact.id)}
+												className="inline-flex items-center gap-1 rounded-xl bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700 hover:bg-amber-100"
+											>
+												<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
+													<path d="M10.75 10.818a2.5 2.5 0 0 1-1.398.482 2.5 2.5 0 0 1-1.398-.482L7.5 9.955V14a.5.5 0 0 1-1 0V8.5a.5.5 0 0 1 .276-.447l3-1.5a.5.5 0 0 1 .448 0l3 1.5A.5.5 0 0 1 13.5 8.5V9.955l-.452.363Z" />
+													<path fillRule="evenodd" d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm0-1.5a6.5 6.5 0 1 1 0-13 6.5 6.5 0 0 1 0 13Z" clipRule="evenodd" />
+												</svg>
+												Harga Khusus
+											</Link>
+										</div>
 									)}
 								</div>
 							))}

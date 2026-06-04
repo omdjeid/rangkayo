@@ -22,6 +22,12 @@ class CustomerOverrideController extends Controller
             ->with('product:id,name,sku')
             ->get();
 
+        $products = \App\Models\Inventory\Product::where('tenant_id', $tenant->id)
+            ->where('is_active', true)
+            ->get(['id', 'name', 'sku', 'selling_price', 'wholesale_price'])
+            ->map(fn ($p) => ['id' => $p->id, 'name' => $p->name, 'sku' => $p->sku, 'selling_price' => (float) $p->selling_price, 'wholesale_price' => (float) $p->wholesale_price])
+            ->values();
+
         return Inertia::render('Contacts/Overrides', [
             'contact' => $contact->only(['id', 'name', 'price_level']),
             'overrides' => $overrides->map(fn ($o): array => [
@@ -30,6 +36,7 @@ class CustomerOverrideController extends Controller
                 'product_name' => $o->product?->name ?? '-',
                 'price' => (float) $o->price,
             ])->values(),
+            'products' => $products,
         ]);
     }
 
