@@ -1,7 +1,7 @@
 import type { PrintPreference } from "@/utils/printPresets";
 
 export const BLUETOOTH_PRINTER_STORAGE_KEY =
-	"akutansia.printer.bluetooth.device";
+	"rangkayo.printer.bluetooth.device";
 export const LEGACY_BLUETOOTH_PRINTER_STORAGE_KEY = "pos_printer";
 
 const LEGACY_THERMAL_BLUETOOTH_SERVICE = "000018f0-0000-1000-8000-00805f9b34fb";
@@ -560,6 +560,6 @@ export async function testThermalBluetoothPrinter() {
 	const characteristic = await connectBluetoothPrinter(true);
 	await writeBluetoothChunks(
 		characteristic,
-		receiptBytes("Akutansia POS\nPrinter siap"),
+		receiptBytes("RangKayo POS\nPrinter siap"),
 	);
 }

@@ -25,15 +25,15 @@ class DemoTenantSeeder extends Seeder
     public function run(): void
     {
         $user = User::query()->firstOrCreate(
-            ['email' => 'owner@akutansia.test'],
+            ['email' => 'owner@rangkayo.test'],
             [
-                'name' => 'Owner Akutansia',
+                'name' => 'Owner RangKayo',
                 'password' => Hash::make('password'),
             ],
         );
 
         $cashier = User::query()->firstOrCreate(
-            ['email' => 'cashier@akutansia.test'],
+            ['email' => 'cashier@rangkayo.test'],
             [
                 'name' => 'Kasir Payakumbuh',
                 'password' => Hash::make('password'),
@@ -163,7 +163,7 @@ class DemoTenantSeeder extends Seeder
         );
 
         $this->command?->info("Demo tenant siap: {$tenant->name}, cabang {$branch->name}, gudang {$warehouse->name}.");
-        $this->command?->info('Login demo owner: owner@akutansia.test / password');
-        $this->command?->info('Login demo kasir: cashier@akutansia.test / password');
+        $this->command?->info('Login demo owner: owner@rangkayo.test / password');
+        $this->command?->info('Login demo kasir: cashier@rangkayo.test / password');
     }
 }

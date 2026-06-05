@@ -355,7 +355,7 @@ function SidebarContent({
 					<ApplicationLogo className="h-11 w-11 text-slate-950 drop-shadow-xl" />
 					<div>
 						<p className="text-base font-bold tracking-tight text-slate-950">
-							Akutansia
+							RangKayo
 						</p>
 						<p className="text-xs font-medium text-slate-500">
 							Akuntansi + POS
@@ -536,7 +536,7 @@ export default function Authenticated({
 							</button>
 							<Link href="/" className="flex items-center gap-2">
 								<ApplicationLogo className="h-9 w-9 text-slate-950" />
-								<span className="font-bold text-slate-950">Akutansia</span>
+								<span className="font-bold text-slate-950">RangKayo</span>
 							</Link>
 						</div>
 

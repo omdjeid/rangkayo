@@ -24,7 +24,7 @@ class SmokeCheckCommand extends Command
 
     public function handle(): int
     {
-        $this->info('Menjalankan smoke check Akutansia...');
+        $this->info('Menjalankan smoke check RangKayo...');
 
         $this->check('Database connection', fn (): bool => (bool) DB::select('select 1'));
         $this->check('Cache store writable', function (): bool {
