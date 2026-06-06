@@ -59,6 +59,7 @@ const navigationGroups: NavigationGroup[] = [
 				name: "POS",
 				href: "pos.index",
 				roles: ["owner", "admin", "branch_manager", "cashier"],
+				external: true,
 			},
 			{
 				name: "Invoice Piutang/Hutang",
@@ -69,6 +70,7 @@ const navigationGroups: NavigationGroup[] = [
 				name: "Shift Kasir",
 				href: "cashier-shifts.index",
 				roles: ["owner", "admin", "branch_manager", "cashier"],
+				external: true,
 			},
 		],
 	},
@@ -269,6 +271,7 @@ function SidebarLink({
 		return (
 			<a href={externalHref} onClick={onClick} className={baseClass}>
 				<span>{item.name}</span>
+				<span className="rounded-full bg-cyan-100 px-2 py-0.5 text-[10px] font-bold text-cyan-700">POS</span>
 			</a>
 		);
 	}
