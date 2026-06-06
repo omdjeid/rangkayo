@@ -338,10 +338,23 @@ function SidebarContent({
 	workspace: Workspace | null;
 	onNavigate?: () => void;
 }) {
-	const groups = useMemo(() => {
-		if (!workspace) return navigationGroups;
+	const isPosDomain = typeof window !== "undefined" && window.location.hostname.startsWith("pos.");
 
-		return navigationGroups
+	const groups = useMemo(() => {
+		const sourceGroups = isPosDomain
+			? navigationGroups
+				.map((group) => ({
+					...group,
+					items: group.items.filter((item) =>
+						["pos.index", "cashier-shifts.index"].includes(item.href),
+					),
+				}))
+				.filter((group) => group.items.length > 0)
+			: navigationGroups;
+
+		if (!workspace) return sourceGroups;
+
+		return sourceGroups
 			.map((group) => ({
 				...group,
 				items: group.items.filter((item) =>
@@ -349,7 +362,7 @@ function SidebarContent({
 				),
 			}))
 			.filter((group) => group.items.length > 0);
-	}, [workspace]);
+	}, [isPosDomain, workspace]);
 
 	return (
 		<div className="flex h-full flex-col">
@@ -361,7 +374,7 @@ function SidebarContent({
 							RangKayo
 						</p>
 						<p className="text-xs font-medium text-slate-500">
-							Akuntansi + POS
+							{isPosDomain ? "Kasir & Shift" : "Akuntansi + POS"}
 						</p>
 					</div>
 				</Link>
