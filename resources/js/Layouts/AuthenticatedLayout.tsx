@@ -267,9 +267,16 @@ function SidebarLink({
 		(active ? "bg-slate-950 text-white shadow-lg shadow-slate-300" : "text-slate-600 hover:bg-white/80 hover:text-slate-950");
 
 	if (item.external) {
+		const isPosDomain = typeof window !== "undefined" && window.location.hostname.startsWith("pos.");
 		const externalHref = route(item.href).replace(/^https?:\/\/[^/]+/, (m) => m.replace("app.", "pos."));
 		return (
-			<a href={externalHref} onClick={onClick} className={baseClass}>
+			<a
+				href={externalHref}
+				onClick={onClick}
+				className={baseClass}
+				target={isPosDomain ? undefined : "_blank"}
+				rel={isPosDomain ? undefined : "noreferrer"}
+			>
 				<span>{item.name}</span>
 				<span className="rounded-full bg-cyan-100 px-2 py-0.5 text-[10px] font-bold text-cyan-700">POS</span>
 			</a>
