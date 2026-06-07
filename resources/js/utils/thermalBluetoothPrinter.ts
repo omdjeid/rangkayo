@@ -228,16 +228,32 @@ async function connectBluetoothInner(allowPicker: boolean) {
 
 	bluetoothDevice = bluetoothDevice || (await reconnectSavedBluetoothDevice());
 
-	if (!bluetoothDevice && !allowPicker) {
-		throw new Error("Printer belum siap. Tap Connect Printer dulu.");
-	}
-
 	if (!bluetoothDevice) {
-		bluetoothDevice = (await navigator.bluetooth.requestDevice({
-			filters: LEGACY_THERMAL_BLUETOOTH_FILTERS,
-			optionalServices: THERMAL_BLUETOOTH_SERVICES,
-		})) as BluetoothLikeDevice;
-		saveBluetoothPrinter(bluetoothDevice);
+		// Try requestDevice with saved printer name filter as fallback
+		const saved = savedBluetoothPrinter();
+		if (saved?.name && saved.name !== "Bluetooth Printer") {
+			try {
+				bluetoothDevice = (await navigator.bluetooth.requestDevice({
+					filters: [{ namePrefix: saved.name }],
+					optionalServices: THERMAL_BLUETOOTH_SERVICES,
+				})) as BluetoothLikeDevice;
+				saveBluetoothPrinter(bluetoothDevice);
+			} catch (_nameFilterError) {
+				// Name filter didn't work, fall through to generic filters or error
+			}
+		}
+
+		if (!bluetoothDevice && !allowPicker) {
+			throw new Error("Printer belum siap. Tap Connect Printer dulu.");
+		}
+
+		if (!bluetoothDevice) {
+			bluetoothDevice = (await navigator.bluetooth.requestDevice({
+				filters: LEGACY_THERMAL_BLUETOOTH_FILTERS,
+				optionalServices: THERMAL_BLUETOOTH_SERVICES,
+			})) as BluetoothLikeDevice;
+			saveBluetoothPrinter(bluetoothDevice);
+		}
 	}
 
 	try {

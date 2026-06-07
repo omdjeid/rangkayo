@@ -91,7 +91,7 @@ export default function Receipt({
 		autoConnectBluetoothPrinter((message, ready) => {
 			setBluetoothStatus(message);
 			setBluetoothReady(ready);
-		}, 2).catch(() => {
+		}, 5).catch(() => {
 			setBluetoothStatus("Gagal reconnect — klik Connect manual");
 			setBluetoothReady(false);
 		});
@@ -101,7 +101,7 @@ export default function Receipt({
 			void autoConnectBluetoothPrinter((message, ready) => {
 				setBluetoothStatus(message);
 				setBluetoothReady(ready);
-			}, 2);
+			}, 5);
 		};
 
 		document.addEventListener("visibilitychange", reconnect);
@@ -115,7 +115,6 @@ export default function Receipt({
 		printPreference.connection,
 		printPreference.printer_name,
 		printPreference.auto_print,
-		printBluetoothReceipt,
 	]);
 
 	async function connectBluetoothPrinter() {
