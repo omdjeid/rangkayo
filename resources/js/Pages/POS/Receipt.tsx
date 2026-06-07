@@ -301,9 +301,7 @@ t				{tenant.logo_url && (
 					onClick={defaultPrint}
 					className="flex-1 rounded-2xl bg-slate-950 px-5 py-3 font-bold text-white shadow-lg"
 				>
-					{printPreference.connection === "bluetooth"
-						? "Cetak Default"
-						: "Cetak"}
+					Cetak
 				</button>
 				<Link
 					href={route("pos.index")}
