@@ -100,11 +100,15 @@ class SaasDomains
         }
 
         if (self::isAdmin($request)) {
-            return $request->routeIs('platform.*', 'tenant.switch', 'branch.switch', 'login', 'logout', 'profile.*') ? null : 'platform.index';
+            return $request->routeIs('platform.*', 'tenant.switch', 'branch.switch', 'login', 'logout', 'profile.*')
+                || $request->isMethod('POST') && $request->is('login', 'register', 'forgot-password', 'reset-password*')
+                ? null : 'platform.index';
         }
 
         if (self::isPos($request)) {
-            return $request->routeIs('pos.*', 'cashier-shifts.*', 'login', 'logout', 'profile.*') ? null : 'pos.index';
+            return $request->routeIs('pos.*', 'cashier-shifts.*', 'login', 'logout', 'profile.*')
+                || $request->isMethod('POST') && $request->is('login', 'register', 'forgot-password', 'reset-password*')
+                ? null : 'pos.index';
         }
 
         if (self::isApp($request)) {
