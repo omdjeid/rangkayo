@@ -153,16 +153,17 @@ export default function Receipt({
 			await printThermalBluetoothReceipt(
 				thermalPayload,
 				effectivePrintPreference,
+				{ allowPicker: false, reconnectBeforePrint: true },
 			);
 			setBluetoothReady(true);
 			setBluetoothStatus("Struk dikirim ke printer Bluetooth.");
 		} catch (error) {
 			setBluetoothReady(false);
-			setBluetoothStatus(
-				error instanceof Error
-					? error.message
-					: "Gagal print Bluetooth. Gunakan Cetak Browser sebagai fallback.",
-			);
+				setBluetoothStatus(
+					error instanceof Error
+						? error.message + " Klik Connect Printer jika perangkat belum tersambung."
+						: "Gagal print Bluetooth. Klik Connect Printer atau gunakan Cetak Browser.",
+				);
 		} finally {
 			setBluetoothBusy(false);
 		}
