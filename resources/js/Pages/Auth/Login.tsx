@@ -4,19 +4,29 @@ import InputLabel from '@/Components/InputLabel';
 import PrimaryButton from '@/Components/PrimaryButton';
 import TextInput from '@/Components/TextInput';
 import GuestLayout from '@/Layouts/GuestLayout';
-import { Head, Link, usePage } from '@inertiajs/react';
+import { Head, Link, useForm } from '@inertiajs/react';
+import { FormEventHandler } from 'react';
 
-type LoginProps = {
+export default function Login({
+    status,
+    canResetPassword,
+}: {
     status?: string;
     canResetPassword: boolean;
-};
+}) {
+    const { data, setData, post, processing, errors, reset } = useForm({
+        email: '',
+        password: '',
+        remember: false as boolean,
+    });
 
-export default function Login({ status, canResetPassword }: LoginProps) {
-    const { errors } = usePage().props as unknown as {
-        errors: { email?: string; password?: string };
+    const submit: FormEventHandler = (e) => {
+        e.preventDefault();
+
+        post(route('login'), {
+            onFinish: () => reset('password'),
+        });
     };
-    const csrfToken =
-        document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? '';
 
     return (
         <GuestLayout>
@@ -28,39 +38,52 @@ export default function Login({ status, canResetPassword }: LoginProps) {
                 </div>
             )}
 
-            <form action={route('login')} method="post">
-                <input type="hidden" name="_token" value={csrfToken} />
-
+            <form onSubmit={submit}>
                 <div>
                     <InputLabel htmlFor="email" value="Email" />
+
                     <TextInput
                         id="email"
                         type="email"
                         name="email"
+                        value={data.email}
                         className="mt-1 block w-full"
                         autoComplete="username"
                         isFocused={true}
-                        required
+                        onChange={(e) => setData('email', e.target.value)}
                     />
+
                     <InputError message={errors.email} className="mt-2" />
                 </div>
 
                 <div className="mt-4">
                     <InputLabel htmlFor="password" value="Password" />
+
                     <TextInput
                         id="password"
                         type="password"
                         name="password"
+                        value={data.password}
                         className="mt-1 block w-full"
                         autoComplete="current-password"
-                        required
+                        onChange={(e) => setData('password', e.target.value)}
                     />
+
                     <InputError message={errors.password} className="mt-2" />
                 </div>
 
                 <div className="mt-4 block">
                     <label className="flex items-center">
-                        <Checkbox name="remember" value="1" />
+                        <Checkbox
+                            name="remember"
+                            checked={data.remember}
+                            onChange={(e) =>
+                                setData(
+                                    'remember',
+                                    (e.target.checked || false) as false,
+                                )
+                            }
+                        />
                         <span className="ms-2 text-sm text-gray-600">
                             Remember me
                         </span>
@@ -77,7 +100,9 @@ export default function Login({ status, canResetPassword }: LoginProps) {
                         </Link>
                     )}
 
-                    <PrimaryButton type="submit" className="ms-4">Log in</PrimaryButton>
+                    <PrimaryButton type="submit" className="ms-4" disabled={processing}>
+                        Log in
+                    </PrimaryButton>
                 </div>
             </form>
         </GuestLayout>
