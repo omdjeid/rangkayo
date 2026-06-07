@@ -221,7 +221,7 @@ export default function Receipt({
 							}
 							className="rounded-2xl bg-white px-5 py-3 font-bold text-slate-700 shadow-lg shadow-slate-200 disabled:opacity-60"
 						>
-							Connect / Test
+							{bluetoothReady ? "Reconnect" : "Connect Printer"}
 						</button>
 						<button
 							type="button"
@@ -229,6 +229,7 @@ export default function Receipt({
 							disabled={
 								bluetoothBusy ||
 								!bluetoothSupported() ||
+								!bluetoothReady ||
 								printPreference.connection === "browser"
 							}
 							className="rounded-2xl bg-cyan-400 px-5 py-3 font-bold text-slate-950 shadow-lg shadow-cyan-200 disabled:opacity-60"
