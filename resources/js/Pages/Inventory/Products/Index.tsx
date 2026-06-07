@@ -12,6 +12,7 @@ interface Product {
 	name: string;
 	product_category_id: number | null;
 	unit_id: number | null;
+	type: string;
 	category: string | null;
 	unit: string | null;
 	cost_price: number;
@@ -19,6 +20,15 @@ interface Product {
 	wholesale_price: number;
 	stock: number;
 	is_active: boolean;
+	recipes: Recipe[];
+}
+
+interface Recipe {
+	id?: number;
+	ingredient_product_id: number;
+	quantity: number;
+	unit_cost_override: number | null;
+	notes: string;
 }
 
 interface Option {
@@ -27,15 +37,30 @@ interface Option {
 	symbol?: string;
 }
 
-const emptyProduct = {
+interface FormData {
+	sku: string;
+	barcode: string;
+	name: string;
+	product_category_id: string;
+	unit_id: string;
+	type: string;
+	cost_price: string;
+	selling_price: string;
+	wholesale_price: string;
+	recipes: Recipe[];
+}
+
+const emptyProduct: FormData = {
 	sku: "",
 	barcode: "",
 	name: "",
 	product_category_id: "",
 	unit_id: "",
+	type: "stock",
 	cost_price: "0",
 	selling_price: "0",
 	wholesale_price: "0",
+	recipes: [],
 };
 
 const inputClass =
@@ -47,12 +72,15 @@ export default function ProductsIndex({
 	units,
 }: PageProps<{ products: Product[]; categories: Option[]; units: Option[] }>) {
 	const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-	const form = useForm({
+	// Recipes are managed via form.data.recipes
+
+	const form = useForm<FormData>({
 		...emptyProduct,
 		unit_id: units[0]?.id?.toString() ?? "",
 	});
 
 	const isEditing = editingProduct !== null;
+	const isComposite = form.data.type === "composite";
 
 	function submit(event: React.FormEvent) {
 		event.preventDefault();
@@ -60,15 +88,25 @@ export default function ProductsIndex({
 		if (editingProduct) {
 			form.patch(route("products.update", editingProduct.id), {
 				preserveScroll: true,
-				onSuccess: cancelEdit,
+				onSuccess: () => {
+					cancelEdit();
+				},
 			});
 			return;
 		}
 
 		form.post(route("products.store"), {
 			preserveScroll: true,
-			onSuccess: () =>
-				form.reset("sku", "barcode", "name", "cost_price", "selling_price", "wholesale_price"),
+			onSuccess: () => {
+				form.reset(
+					"sku",
+					"barcode",
+					"name",
+					"cost_price",
+					"selling_price",
+					"wholesale_price"
+				);
+				},
 		});
 	}
 
@@ -80,16 +118,50 @@ export default function ProductsIndex({
 			name: product.name,
 			product_category_id: product.product_category_id?.toString() ?? "",
 			unit_id: product.unit_id?.toString() ?? "",
+			type: product.type ?? "stock",
 			cost_price: product.cost_price.toString(),
 			selling_price: product.selling_price.toString(),
 			wholesale_price: (product.wholesale_price ?? 0).toString(),
 		});
+		form.setData(
+			"recipes",
+			(product.recipes ?? []).map((r) => ({
+				id: r.id,
+				ingredient_product_id: r.ingredient_product_id,
+				quantity: r.quantity,
+				unit_cost_override: r.unit_cost_override,
+				notes: r.notes ?? "",
+			}))
+		);
 	}
 
 	function cancelEdit() {
 		setEditingProduct(null);
 		form.clearErrors();
 		form.setData({ ...emptyProduct, unit_id: units[0]?.id?.toString() ?? "" });
+	}
+
+	function addRecipe() {
+		form.setData("recipes", [
+			...form.data.recipes,
+			{
+				ingredient_product_id: 0,
+				quantity: 1,
+				unit_cost_override: null,
+				notes: "",
+			},
+		]);
+	}
+
+	function removeRecipe(index: number) {
+		form.setData("recipes", form.data.recipes.filter((_, i) => i !== index));
+	}
+
+	function updateRecipe(index: number, field: keyof Recipe, value: unknown) {
+		form.setData(
+			"recipes",
+			form.data.recipes.map((r, i) => (i === index ? { ...r, [field]: value } : r))
+		);
 	}
 
 	return (
@@ -131,6 +203,34 @@ export default function ProductsIndex({
 						)}
 
 						<div className="mt-5 space-y-4">
+							{/* Product Type Radio */}
+							<FormField label="Jenis Produk" hint="Pilih jenis produk: stok atau racikan (composite).">
+								<div className="flex gap-4">
+									<label className="flex items-center gap-2 cursor-pointer">
+										<input
+											type="radio"
+											name="type"
+											value="stock"
+											checked={form.data.type === "stock"}
+											onChange={() => form.setData("type", "stock")}
+											className="h-4 w-4 text-cyan-500 border-slate-300 focus:ring-cyan-400"
+										/>
+										<span className="text-sm font-medium text-slate-700">Stok</span>
+									</label>
+									<label className="flex items-center gap-2 cursor-pointer">
+										<input
+											type="radio"
+											name="type"
+											value="composite"
+											checked={form.data.type === "composite"}
+											onChange={() => form.setData("type", "composite")}
+											className="h-4 w-4 text-cyan-500 border-slate-300 focus:ring-cyan-400"
+										/>
+										<span className="text-sm font-medium text-slate-700">Racikan</span>
+									</label>
+								</div>
+							</FormField>
+
 							<FormField
 								label="SKU / Kode Produk"
 								hint="Kode internal produk. Contoh: BRG-001."
@@ -262,6 +362,118 @@ export default function ProductsIndex({
 								/>
 							</FormField>
 
+							{/* Recipe Editor Section */}
+							{isComposite && (
+								<div className="rounded-2xl border border-amber-200 bg-amber-50/50 p-4">
+									<div className="flex items-center justify-between mb-3">
+										<div>
+											<h4 className="text-sm font-semibold text-amber-900">
+												Bahan Racikan
+											</h4>
+											<p className="text-xs text-amber-700">
+												Tambahkan bahan yang diperlukan untuk membuat produk ini.
+											</p>
+										</div>
+										<button
+											type="button"
+											onClick={addRecipe}
+											className="rounded-full bg-amber-500 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-600 transition-colors"
+										>
+											+ Tambah Bahan
+										</button>
+									</div>
+
+									{form.data.recipes.length === 0 && (
+										<p className="text-center text-sm text-amber-600 py-4">
+											Belum ada bahan ditambahkan. Klik "Tambah Bahan" untuk menambahkan.
+										</p>
+									)}
+
+									{form.data.recipes.length > 0 && (
+										<div className="space-y-3">
+											{form.data.recipes.map((recipe, index) => (
+												<div
+													key={index}
+													className="flex flex-col gap-3 rounded-xl border border-amber-200 bg-white/80 p-3 sm:flex-row sm:items-end"
+												>
+													{/* Ingredient dropdown */}
+													<div className="flex-1">
+														<label className="block text-xs font-medium text-slate-600 mb-1">
+															Bahan *
+														</label>
+														<select
+															className={inputClass}
+															value={recipe.ingredient_product_id || ""}
+															onChange={(e) =>
+																updateRecipe(index, "ingredient_product_id", Number(e.target.value))
+															}
+														>
+															<option value="">Pilih bahan...</option>
+															{products.map((p) => (
+																<option key={p.id} value={p.id}>
+																	{p.name} ({p.sku ?? "-"})
+																</option>
+															))}
+														</select>
+													</div>
+
+													{/* Quantity */}
+													<div className="w-full sm:w-28">
+														<label className="block text-xs font-medium text-slate-600 mb-1">
+															Jumlah *
+														</label>
+														<input
+															type="number"
+															min="0.0001"
+															step="any"
+															className={inputClass}
+															value={recipe.quantity}
+															onChange={(e) =>
+																updateRecipe(index, "quantity", parseFloat(e.target.value) || 0)
+															}
+														/>
+													</div>
+
+													{/* Cost override */}
+													<div className="w-full sm:w-32">
+														<label className="block text-xs font-medium text-slate-600 mb-1">
+															Harga Modal (opsional)
+														</label>
+														<input
+															type="number"
+															min="0"
+															step="any"
+															className={inputClass}
+															value={recipe.unit_cost_override ?? ""}
+															placeholder="Otomatis"
+															onChange={(e) =>
+																updateRecipe(
+																	index,
+																	"unit_cost_override",
+																	e.target.value === "" ? null : parseFloat(e.target.value)
+																)
+															}
+														/>
+													</div>
+
+													{/* Remove button */}
+													<button
+														type="button"
+														onClick={() => removeRecipe(index)}
+														className="flex-shrink-0 rounded-full bg-red-100 p-2 text-red-600 hover:bg-red-200 transition-colors"
+														title="Hapus bahan"
+													>
+														<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+															<path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+														</svg>
+													</button>
+												</div>
+											))}
+										</div>
+									)}
+								</div>
+							)}
+
 							<button
 								disabled={form.processing}
 								className="w-full rounded-2xl bg-slate-950 px-5 py-3 font-semibold text-white shadow-lg shadow-slate-300 disabled:opacity-60"
@@ -289,6 +501,11 @@ export default function ProductsIndex({
 											<p className="text-sm text-slate-500">
 												{product.sku ?? "-"} ·{" "}
 												{product.category ?? "Tanpa kategori"}
+												{product.type === "composite" && (
+													<span className="ml-2 inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
+														Racikan
+													</span>
+												)}
 											</p>
 										</div>
 										<div className="text-left sm:text-right">

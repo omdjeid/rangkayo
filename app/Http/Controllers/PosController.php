@@ -190,6 +190,7 @@ class PosController extends Controller
 
 
                     'stock' => $product->stockOnHand($warehouse->id),
+                    'is_composite' => $product->isComposite(),
 
 
                 ])->values(),

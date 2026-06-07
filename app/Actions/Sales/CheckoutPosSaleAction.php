@@ -141,6 +141,34 @@ class CheckoutPosSaleAction
                     'source_id' => $sale->id,
                     'notes' => 'Stok keluar dari POS',
                 ]);
+
+                // Auto-deduct ingredients for composite products
+                if ($product->isComposite()) {
+                    $recipes = $product->recipes()->with('ingredient')->get();
+                    foreach ($recipes as $recipe) {
+                        $ingredientQty = $recipe->quantity * $row['quantity'];
+                        $ingredientUnitCost = $recipe->unit_cost_override ?? $recipe->ingredient->cost_price;
+                        $ingredientTotalCost = round($ingredientUnitCost * $ingredientQty, 2);
+
+                        InventoryMovement::query()->create([
+                            'tenant_id' => $tenant->id,
+                            'branch_id' => $branch->id,
+                            'warehouse_id' => $warehouse->id,
+                            'product_id' => $recipe->ingredient_product_id,
+                            'journal_entry_id' => $journalEntry->id,
+                            'movement_number' => 'STK-OUT-'.$number.'-'.$recipe->ingredient_product_id.'-R',
+                            'movement_type' => 'pos_recipe_deduct',
+                            'movement_at' => now(),
+                            'quantity_in' => 0,
+                            'quantity_out' => $ingredientQty,
+                            'unit_cost' => $ingredientUnitCost,
+                            'total_cost' => $ingredientTotalCost,
+                            'source_type' => Sale::class,
+                            'source_id' => $sale->id,
+                            'notes' => 'Bahan untuk '.$product->name.' x'.$row['quantity'],
+                        ]);
+                    }
+                }
             }
 
             return $sale->load(['items.product', 'journalEntry.lines.account', 'user', 'cashierShift']);

@@ -52,6 +52,7 @@ class StockReportController extends Controller
         $rows = Product::query()
             ->where('products.tenant_id', $tenant->id)
             ->where('products.is_active', true)
+            ->whereDoesntHave('recipes')
             ->leftJoinSub($movementSummary, 'stock_summary', fn ($join) => $join->on('stock_summary.product_id', '=', 'products.id'))
             ->leftJoin('warehouses', 'warehouses.id', '=', 'stock_summary.warehouse_id')
             ->leftJoin('branches', 'branches.id', '=', 'warehouses.branch_id')

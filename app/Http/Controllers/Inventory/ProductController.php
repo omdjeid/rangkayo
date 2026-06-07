@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Inventory;
 use App\Http\Controllers\Controller;
 use App\Models\Inventory\Product;
 use App\Models\Inventory\ProductCategory;
+use App\Models\Inventory\ProductRecipe;
 use App\Models\Inventory\Unit;
 use App\Support\CurrentTenant;
 use Illuminate\Http\RedirectResponse;
@@ -22,7 +23,7 @@ class ProductController extends Controller
 
         return Inertia::render('Inventory/Products/Index', [
             'products' => Product::query()
-                ->with(['category:id,name', 'unit:id,symbol'])
+                ->with(['category:id,name', 'unit:id,symbol', 'recipes.ingredient:id,name,sku'])
                 ->where('tenant_id', $tenant->id)
                 ->orderBy('name')
                 ->get()
@@ -39,6 +40,16 @@ class ProductController extends Controller
                     'selling_price' => (float) $product->selling_price,
                     'stock' => $product->stockOnHand($warehouse->id),
                     'is_active' => $product->is_active,
+                    'type' => $product->type,
+                    'recipes' => $product->recipes->map(fn (ProductRecipe $recipe): array => [
+                        'id' => $recipe->id,
+                        'ingredient_product_id' => $recipe->ingredient_product_id,
+                        'ingredient_name' => $recipe->ingredient?->name,
+                        'ingredient_sku' => $recipe->ingredient?->sku,
+                        'quantity' => (float) $recipe->quantity,
+                        'unit_cost_override' => $recipe->unit_cost_override !== null ? (float) $recipe->unit_cost_override : null,
+                        'notes' => $recipe->notes,
+                    ]),
                 ])->values(),
             'categories' => ProductCategory::query()->where('tenant_id', $tenant->id)->orderBy('name')->get(['id', 'name']),
             'units' => Unit::query()->where('tenant_id', $tenant->id)->orderBy('name')->get(['id', 'name', 'symbol']),
@@ -51,11 +62,13 @@ class ProductController extends Controller
 
         $validated = $request->validate($this->rules($tenant->id));
 
-        Product::query()->create([
+        $product = Product::query()->create([
             ...$validated,
             'tenant_id' => $tenant->id,
-            'type' => 'stock',
+            'type' => $validated['type'] ?? 'stock',
         ]);
+
+        $this->syncRecipes($product, $request->input('recipes', []), $tenant->id);
 
         return back()->with('success', 'Produk berhasil dibuat.');
     }
@@ -69,6 +82,8 @@ class ProductController extends Controller
         $validated = $request->validate($this->rules($tenant->id, $product->id));
 
         $product->update($validated);
+
+        $this->syncRecipes($product, $request->input('recipes', []), $tenant->id);
 
         return back()->with('success', 'Produk berhasil diupdate.');
     }
@@ -84,9 +99,33 @@ class ProductController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'product_category_id' => ['nullable', Rule::exists('product_categories', 'id')->where('tenant_id', $tenantId)],
             'unit_id' => ['nullable', Rule::exists('units', 'id')->where('tenant_id', $tenantId)],
+            'type' => ['nullable', 'string', 'in:stock,composite'],
             'cost_price' => ['required', 'numeric', 'min:0'],
             'selling_price' => ['required', 'numeric', 'min:0'],
             'wholesale_price' => ['nullable', 'numeric', 'min:0'],
+            'recipes' => ['nullable', 'array'],
+            'recipes.*.ingredient_product_id' => ['required', 'exists:products,id'],
+            'recipes.*.quantity' => ['required', 'numeric', 'min:0.0001'],
+            'recipes.*.unit_cost_override' => ['nullable', 'numeric', 'min:0'],
         ];
+    }
+
+    /**
+     * Replace all recipe rows for a product from the submitted array.
+     */
+    private function syncRecipes(Product $product, array $recipes, int $tenantId): void
+    {
+        $product->recipes()->delete();
+
+        foreach ($recipes as $recipe) {
+            ProductRecipe::query()->create([
+                'tenant_id' => $tenantId,
+                'product_id' => $product->id,
+                'ingredient_product_id' => $recipe['ingredient_product_id'],
+                'quantity' => $recipe['quantity'],
+                'unit_cost_override' => $recipe['unit_cost_override'] ?? null,
+                'notes' => $recipe['notes'] ?? null,
+            ]);
+        }
     }
 }

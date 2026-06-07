@@ -16,6 +16,7 @@ interface Product {
 	selling_price: number;
 	cost_price: number;
 	stock: number;
+	is_composite: boolean;
 }
 
 interface CartItem extends Product {
@@ -423,6 +424,9 @@ function PosWorkspace({
 									<div>
 										<p className="font-semibold text-slate-950">
 											{product.name}
+											{product.is_composite && (
+												<span className="ml-1.5 inline-block rounded-full bg-purple-100 px-2 py-0.5 text-[10px] font-bold text-purple-600 align-middle">🧪 Racikan</span>
+											)}
 										</p>
 										<p className="mt-1 text-sm text-slate-500">
 											{product.sku ?? "-"} · Stok {formatNumber(product.stock)}{" "}

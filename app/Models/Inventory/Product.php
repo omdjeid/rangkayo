@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\DB;
 
 class Product extends Model
 {
@@ -67,6 +68,23 @@ class Product extends Model
     public function stockTransfers(): HasMany
     {
         return $this->hasMany(StockTransfer::class);
+    }
+
+    public function recipes(): HasMany
+    {
+        return $this->hasMany(ProductRecipe::class);
+    }
+
+    public function isComposite(): bool
+    {
+        return $this->recipes()->exists();
+    }
+
+    public function recipeCost(): float
+    {
+        return (float) $this->recipes()
+            ->join('products AS ingredients', 'ingredients.id', '=', 'product_recipes.ingredient_product_id')
+            ->sum(DB::raw('product_recipes.quantity * COALESCE(product_recipes.unit_cost_override, ingredients.cost_price)'));
     }
 
     public function stockOnHand(?int $warehouseId = null): float
