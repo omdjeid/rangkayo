@@ -2,6 +2,11 @@ import type { PrintPreference } from "@/utils/printPresets";
 
 export const BLUETOOTH_PRINTER_STORAGE_KEY =
 	"rangkayo.printer.bluetooth.device";
+const BLUETOOTH_PRINTER_STORAGE_KEYS = [
+	BLUETOOTH_PRINTER_STORAGE_KEY,
+	"akutansia.printer.bluetooth.device",
+	"pos_printer",
+];
 export const LEGACY_BLUETOOTH_PRINTER_STORAGE_KEY = "pos_printer";
 
 const LEGACY_THERMAL_BLUETOOTH_SERVICE = "000018f0-0000-1000-8000-00805f9b34fb";
@@ -68,35 +73,19 @@ function printerSavedAt(value: string | number | null | undefined) {
 export function savedBluetoothPrinters(): SavedBluetoothPrinter[] {
 	const candidates: SavedBluetoothPrinter[] = [];
 
-	try {
-		const current = JSON.parse(
-			window.localStorage.getItem(BLUETOOTH_PRINTER_STORAGE_KEY) || "null",
-		);
-		if (current?.id || current?.name) {
-			candidates.push({
-				id: current.id || "",
-				name: current.name || "Bluetooth Printer",
-				saved_at: current.saved_at || null,
-			});
+	for (const key of BLUETOOTH_PRINTER_STORAGE_KEYS) {
+		try {
+			const stored = JSON.parse(window.localStorage.getItem(key) || "null");
+			if (stored?.deviceId || stored?.id || stored?.deviceName || stored?.name) {
+				candidates.push({
+					id: stored.deviceId || stored.id || "",
+					name: stored.deviceName || stored.name || "Bluetooth Printer",
+					saved_at: stored.saved_at || stored.connectedAt || null,
+				});
+			}
+		} catch (_error) {
+			// Ignore malformed storage and keep checking other known keys.
 		}
-	} catch (_error) {
-		// Ignore malformed storage and keep checking the legacy key.
-	}
-
-	try {
-		const legacy = JSON.parse(
-			window.localStorage.getItem(LEGACY_BLUETOOTH_PRINTER_STORAGE_KEY) ||
-				"null",
-		);
-		if (legacy?.deviceId || legacy?.id || legacy?.deviceName || legacy?.name) {
-			candidates.push({
-				id: legacy.deviceId || legacy.id || "",
-				name: legacy.deviceName || legacy.name || "Bluetooth Printer",
-				saved_at: legacy.saved_at || legacy.connectedAt || null,
-			});
-		}
-	} catch (_error) {
-		// Ignore malformed legacy storage too.
 	}
 
 	return candidates
@@ -125,6 +114,10 @@ function saveBluetoothPrinter(device: BluetoothLikeDevice) {
 	try {
 		window.localStorage.setItem(
 			BLUETOOTH_PRINTER_STORAGE_KEY,
+			JSON.stringify(currentPayload),
+		);
+		window.localStorage.setItem(
+			"akutansia.printer.bluetooth.device",
 			JSON.stringify(currentPayload),
 		);
 		window.localStorage.setItem(
