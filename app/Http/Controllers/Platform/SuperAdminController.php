@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Platform;
 use App\Http\Controllers\Controller;
 use App\Models\PlatformAuditLog;
 use App\Models\Tenant;
+use App\Models\TenantSubscription;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -92,7 +93,7 @@ class SuperAdminController extends Controller
         ]);
 
         $tenant->update(['status' => $validated['status']]);
-        $tenant->subscription()->updateOrCreate(
+        TenantSubscription::updateOrCreate(
             ['tenant_id' => $tenant->id],
             [
                 'plan_code' => str($validated['plan_name'])->slug()->toString(),

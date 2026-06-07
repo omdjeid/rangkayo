@@ -167,7 +167,7 @@ function TenantDrawer({ tenant, onClose }: { tenant: TenantRow; onClose: () => v
 							<option value="suspended">suspended</option>
 						</select>
 					</FormField>
-					<FormField label="Plan"><input className={inputClass} value={form.data.plan_name} onChange={(event) => form.setData("plan_name", event.target.value)} /></FormField>
+					<FormField label="Plan"><select className={inputClass} value={form.data.plan_name} onChange={(event) => form.setData("plan_name", event.target.value)}><option value="Starter">Starter</option><option value="Growth">Growth</option></select></FormField>
 					<FormField label="Limit User"><input className={inputClass} type="number" value={form.data.user_limit} onChange={(event) => form.setData("user_limit", Number(event.target.value))} /></FormField>
 					<FormField label="Limit Cabang"><input className={inputClass} type="number" value={form.data.branch_limit} onChange={(event) => form.setData("branch_limit", Number(event.target.value))} /></FormField>
 					<FormField label="Limit Transaksi"><input className={inputClass} type="number" value={form.data.transaction_limit} onChange={(event) => form.setData("transaction_limit", Number(event.target.value))} /></FormField>
