@@ -182,7 +182,7 @@ export default function Receipt({
 				onWidthChange={print.setWidth}
 				onHeightChange={print.setHeight}
 				onMarginChange={print.setMargin}
-				onPrint={() => void printBluetoothReceipt()}
+				onPrint={() => void defaultPrint()}
 			/>
 			<section className="mx-auto mb-6 max-w-5xl rounded-[2rem] border border-white/80 bg-white/80 p-4 shadow-xl shadow-slate-200/70 backdrop-blur-2xl print:hidden">
 				<div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
